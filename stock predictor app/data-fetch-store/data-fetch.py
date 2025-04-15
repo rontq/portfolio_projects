@@ -1,12 +1,17 @@
 import yfinance as yf
 import pandas as pd
+import ta
 import psycopg2
 from psycopg2 import sql
+from ta.trend import sma_indicator, ema_indicator, macd
+from ta.momentum import rsi
+from ta.volume import on_balance_volume
+from ta.volatility import BollingerBands
 
 # DB connect credentials
 DB_PARAMS = {
-    "dbname": "stock_data",
-    "user": "superuser",
+    "dbname": "stock-market-table",
+    "user": "postgres",
     "password": "db123",
     "host": "localhost",
     "port": "5432"
@@ -66,34 +71,55 @@ def create_table():
         conn.commit()
         cur.close()
         conn.close()
-        print("✅ Table created or already exists.")
+        print(" Table created or already exists.")
     except Exception as e:
-        print("❌ Error creating table:")
+        print(" Error creating table:")
         print(e)
 
-def fetch_stock_data(symbol, start_date="2010-01-01"):
-    stock = yf.download(symbol, start=start_date)
-    stock = stock.reset_index()
+import time
+import yfinance as yf
+import ta
 
-    stock["sma_50"] = ta.trend.sma_indicator(stock["Close"], window=50)
-    stock["ema_50"] = ta.trend.ema_indicator(stock["Close"], window=50)
-    stock["macd"] = ta.trend.macd(stock["Close"])
-    stock["dma"] = stock["Close"] - stock["sma_50"]
-    stock["rsi"] = ta.momentum.rsi(stock["Close"])
+#Give time to yfinance to get each ticker properly
+def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=2):
+    import time
+    for attempt in range(retries):
+        try:
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(start=start_date)
+            if df.empty:
+                raise ValueError(f"No data for {symbol}")
+            df = df.reset_index()
+            break
+        except Exception as e:
+            print(f"⏳ Retry {attempt + 1} for {symbol} due to error: {e}")
+            time.sleep(sleep_sec)
+    else:
+        print(f"❌ Giving up on {symbol} after {retries} retries")
+        return None
 
-    bb = ta.volatility.BollingerBands(stock["Close"], window=20)
-    stock["bollinger_upper"] = bb.bollinger_hband()
-    stock["bollinger_middle"] = bb.bollinger_mavg()
-    stock["bollinger_lower"] = bb.bollinger_lband()
+    try:
+        df["sma_50"] = ta.trend.sma_indicator(df["Close"], window=50)
+        df["ema_50"] = ta.trend.ema_indicator(df["Close"], window=50)
+        df["macd"] = ta.trend.macd(df["Close"])
+        df["dma"] = df["Close"] - df["sma_50"]
+        df["rsi"] = ta.momentum.rsi(df["Close"])
 
-    stock["obv"] = ta.volume.on_balance_volume(stock["Close"], stock["Volume"])
-    stock["sma_200_weekly"] = stock["Close"].rolling(window=200 * 5).mean()
+        bb = ta.volatility.BollingerBands(df["Close"])
+        df["bollinger_upper"] = bb.bollinger_hband()
+        df["bollinger_middle"] = bb.bollinger_mavg()
+        df["bollinger_lower"] = bb.bollinger_lband()
 
-    # Support/Resistance placeholders
-    stock["support_level"] = None
-    stock["resistance_level"] = None
+        df["obv"] = ta.volume.on_balance_volume(df["Close"], df["Volume"])
+        df["sma_200_weekly"] = df["Close"].rolling(window=200 * 5).mean()
+        return df
 
-    return stock
+    except Exception as e:
+        print(f"⚠️ Indicator calc failed for {symbol}: {e}")
+        return None
+
+
+
 
 def insert_data(symbol, sector, df):
     conn = psycopg2.connect(**DB_PARAMS)
@@ -105,20 +131,17 @@ def insert_data(symbol, sector, df):
                 INSERT INTO stock_market_table (
                     symbol, sector, date, open, high, low, close, volume,
                     sma_50, ema_50, sma_200_weekly, macd, dma, rsi,
-                    bollinger_upper, bollinger_middle, bollinger_lower, obv,
-                    support_level, resistance_level
+                    bollinger_upper, bollinger_middle, bollinger_lower, obv
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s
+                    %s, %s, %s, %s
                 )
             """),
             (
                 symbol, sector, row["Date"], row["Open"], row["High"], row["Low"], row["Close"], row["Volume"],
                 row["sma_50"], row["ema_50"], row["sma_200_weekly"], row["macd"], row["dma"], row["rsi"],
-                row["bollinger_upper"], row["bollinger_middle"], row["bollinger_lower"], row["obv"],
-                row["support_level"], row["resistance_level"]
+                row["bollinger_upper"], row["bollinger_middle"], row["bollinger_lower"], row["obv"]
             )
         )
 
