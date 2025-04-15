@@ -1,6 +1,6 @@
 CREATE TABLE stock_market_table (
     --Note all from yfinance for OCHLV and indicator values
-    
+
     id SERIAL PRIMARY KEY,
     symbol TEXT NOT NULL,
     sector TEXT,
@@ -24,14 +24,6 @@ CREATE TABLE stock_market_table (
     bollinger_middle FLOAT,
     bollinger_lower FLOAT,
     obv BIGINT,
-    
-    -- Pattern Features
-    head_shoulders INT,
-    double_top INT,
-    double_bottom INT,
-    wedges INT,
-    channels INT,
-    dead_cat_bounce INT,
     
     -- Support/Resistance
     support_level FLOAT,
