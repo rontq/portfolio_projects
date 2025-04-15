@@ -41,7 +41,7 @@ SECTOR_STOCKS = {
     ],
     "Communications": [
         "GOOGL", "META", "DIS", "NFLX", "CMCSA", "VZ", "T", "CHTR", "TMUS", "PARA",
-        "FOXA", "WBD", "LUMN", "Z", "MTCH", "ATVI", "EA", "BIDU", "SPOT", "LYV"
+        "FOXA", "WBD", "LUMN", "Z", "MTCH", "ROKU", "EA", "BIDU", "SPOT", "LYV"
     ],
     "Utilities": [
         "NEE", "DUK", "SO", "D", "EXC", "AEP", "XEL", "PEG", "ED", "WEC",
