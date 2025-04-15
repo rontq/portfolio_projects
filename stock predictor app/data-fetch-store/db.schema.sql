@@ -33,5 +33,3 @@ CREATE TABLE stock_market_table (
     inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Optional: for fast querying
-CREATE INDEX idx_stock_date ON stock_prices (symbol, date);

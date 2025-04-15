@@ -4,7 +4,7 @@ import ta
 import psycopg2
 from psycopg2 import sql
 
-# DB connect
+# DB connect credentials
 DB_PARAMS = {
     "dbname": "stock_data",
     "user": "superuser",
@@ -13,7 +13,7 @@ DB_PARAMS = {
     "port": "5432"
 }
 
-# Define sectors and respective tickers.
+# Define sectors and respective tickers. Modeled after S&P500
 SECTOR_STOCKS = {
     "Information Technology": [
         "AAPL", "MSFT", "NVDA", "ADBE", "CRM", "AVGO", "INTC", "AMD", "ORCL", "TXN",
@@ -50,10 +50,10 @@ def test_database_connection():
     try:
         conn = psycopg2.connect(**DB_PARAMS)
         conn.close()
-        print("✅ Successfully connected to PostgreSQL database.")
+        print("Successfully connected to PostgreSQL database.")
         return True
     except OperationalError as e:
-        print("❌ Could not connect to the database:")
+        print("Could not connect to the database:")
         print(e)
         return False
     
@@ -141,4 +141,4 @@ if __name__ == "__main__":
                 except Exception as e:
                     print(f"⚠️ Failed to process {symbol}: {e}")
     else:
-        print("🛑 Aborting script due to failed DB connection.")
+        print("Failed DB Connection.")
