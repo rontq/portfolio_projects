@@ -1,6 +1,5 @@
 import yfinance as yf
 import pandas as pd
-import ta
 import psycopg2
 from psycopg2 import sql
 
