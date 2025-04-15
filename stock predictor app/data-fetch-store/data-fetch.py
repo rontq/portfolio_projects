@@ -46,20 +46,20 @@ SECTOR_STOCKS = {
     "Consumer Staples": [
         "PG", "KO", "PEP", "WMT", "COST", "MDLZ", "CL", "KMB", "WBA", "KR",
         "TGT", "SYY", "STZ", "EL", "MO", "PM", "HSY", "K", "TSN", "CHD",
-        "GIS", "CAG", "KHC", "HRL", "CPB", "MKC", "TAP", "BF.B", "RAD", "ALCO",
+        "GIS", "CAG", "KHC", "HRL", "CPB", "MKC", "TAP", "ALCO",
         "USFD", "BRBR", "SFM", "POST", "PRGO", "MNST", "LW", "CELH", "ACI", "FLO"
     ],
     "Communications": [
         "GOOGL", "META", "DIS", "NFLX", "CMCSA", "VZ", "T", "CHTR", "TMUS", "PARA",
         "FOXA", "WBD", "LUMN", "Z", "MTCH", "ROKU", "EA", "BIDU", "SPOT", "LYV",
-        "TTWO", "SIRI", "TTD", "BILI", "YY", "IQ", "IAC", "FWONA", "DISH", "CURI",
+        "TTWO", "SIRI", "TTD", "BILI", "YY", "IQ", "IAC", "FWONA", "CURI",
         "ATUS", "VG", "AMC", "IMAX", "CXM", "SBGI", "NXST", "SEAC", "EGHT", "IRDM"
     ],
     "Utilities": [
         "NEE", "DUK", "SO", "D", "EXC", "AEP", "XEL", "PEG", "ED", "WEC",
         "ES", "EIX", "FE", "ETR", "PPL", "AWK", "SRE", "CMS", "VST", "NRG",
         "CNP", "OGE", "NI", "ALE", "AEE", "PNW", "LNT", "IDU", "SWX", "AVA",
-        "UGI", "OTTR", "ORA", "BKH", "WTRG", "EVRG", "HE", "POM", "TE", "AES"
+        "UGI", "OTTR", "ORA", "BKH", "WTRG", "EVRG", "HE", "TE", "AES"
     ]
 }
 
