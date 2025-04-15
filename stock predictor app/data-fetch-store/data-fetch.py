@@ -21,33 +21,48 @@ DB_PARAMS = {
 SECTOR_STOCKS = {
     "Information Technology": [
         "AAPL", "MSFT", "NVDA", "ADBE", "CRM", "AVGO", "INTC", "AMD", "ORCL", "TXN",
-        "QCOM", "MU", "IBM", "HPQ", "ACN", "CDNS", "ADI", "KLAC", "SNPS", "PANW"
+        "QCOM", "MU", "IBM", "HPQ", "ACN", "CDNS", "ADI", "KLAC", "SNPS", "PANW",
+        "NOW", "FTNT", "ANET", "MCHP", "MPWR", "NXPI", "AKAM", "PAYC", "TYL", "TER",
+        "KEYS", "ENPH", "APH", "BR", "FLT", "CDW", "CTSH", "ZS", "TTD", "OKTA"
     ],
     "Financials": [
         "JPM", "BAC", "WFC", "C", "GS", "MS", "AXP", "USB", "TFC", "PNC",
-        "BK", "BLK", "SCHW", "AIG", "CB", "MET", "PRU", "CME", "ICE", "TRV"
+        "BK", "BLK", "SCHW", "AIG", "CB", "MET", "PRU", "CME", "ICE", "TRV",
+        "AFL", "ALL", "PGR", "MKTX", "DFS", "NDAQ", "MTB", "FITB", "CFG", "RF",
+        "ZION", "HBAN", "CINF", "WRB", "RJF", "FRC", "HIG", "LNC", "STT", "IVZ"
     ],
     "Healthcare": [
         "UNH", "JNJ", "PFE", "ABBV", "LLY", "MRK", "TMO", "MDT", "BMY", "AMGN",
-        "CVS", "GILD", "CI", "HUM", "ISRG", "DHR", "ZBH", "BSX", "SYK", "BIIB"
+        "CVS", "GILD", "CI", "HUM", "ISRG", "DHR", "ZBH", "BSX", "SYK", "BIIB",
+        "VRTX", "REGN", "EW", "ILMN", "IDXX", "RMD", "ALGN", "BAX", "BDX", "MTD",
+        "TFX", "HCA", "ABC", "CAH", "MCK", "UHS", "INCY", "PKI", "DGX", "WST"
     ],
     "Consumer Discretionary": [
         "AMZN", "TSLA", "HD", "MCD", "NKE", "LOW", "SBUX", "BKNG", "TJX", "ROST",
-        "F", "GM", "EBAY", "LVS", "MAR", "RCL", "YUM", "DG", "AZO", "ORLY"
+        "F", "GM", "EBAY", "LVS", "MAR", "RCL", "YUM", "DG", "AZO", "ORLY",
+        "TGT", "ULTA", "DPZ", "BBY", "ETSY", "DHI", "LEN", "TOL", "NVR", "POOL",
+        "BURL", "KMX", "YETI", "WSM", "RH", "HOG", "MHK", "TPR", "HAS", "ROG"
     ],
     "Consumer Staples": [
         "PG", "KO", "PEP", "WMT", "COST", "MDLZ", "CL", "KMB", "WBA", "KR",
-        "TGT", "SYY", "STZ", "EL", "MO", "PM", "HSY", "K", "TSN", "CHD"
+        "TGT", "SYY", "STZ", "EL", "MO", "PM", "HSY", "K", "TSN", "CHD",
+        "GIS", "CAG", "KHC", "HRL", "CPB", "MKC", "TAP", "BF.B", "RAD", "ALCO",
+        "USFD", "BRBR", "SFM", "POST", "PRGO", "MNST", "LW", "CELH", "ACI", "FLO"
     ],
     "Communications": [
         "GOOGL", "META", "DIS", "NFLX", "CMCSA", "VZ", "T", "CHTR", "TMUS", "PARA",
-        "FOXA", "WBD", "LUMN", "Z", "MTCH", "ROKU", "EA", "BIDU", "SPOT", "LYV"
+        "FOXA", "WBD", "LUMN", "Z", "MTCH", "ROKU", "EA", "BIDU", "SPOT", "LYV",
+        "TTWO", "SIRI", "TTD", "BILI", "YY", "IQ", "IAC", "FWONA", "DISH", "CURI",
+        "ATUS", "VG", "AMC", "IMAX", "CXM", "SBGI", "NXST", "SEAC", "EGHT", "IRDM"
     ],
     "Utilities": [
         "NEE", "DUK", "SO", "D", "EXC", "AEP", "XEL", "PEG", "ED", "WEC",
-        "ES", "EIX", "FE", "ETR", "PPL", "AWK", "SRE", "CMS", "VST", "NRG"
+        "ES", "EIX", "FE", "ETR", "PPL", "AWK", "SRE", "CMS", "VST", "NRG",
+        "CNP", "OGE", "NI", "ALE", "AEE", "PNW", "LNT", "IDU", "SWX", "AVA",
+        "UGI", "OTTR", "ORA", "BKH", "WTRG", "EVRG", "HE", "POM", "TE", "AES"
     ]
 }
+
 
 def test_database_connection():
 #   Test the PostgreSQL database connection before proceeding.
