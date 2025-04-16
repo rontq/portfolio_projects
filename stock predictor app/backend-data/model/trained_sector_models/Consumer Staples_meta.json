@@ -1,0 +1,32 @@
+{
+    "sector": "Consumer Staples",
+    "metrics": {
+        "RMSE": 1.9002189165311627,
+        "MAE": 0.8658711284692854,
+        "R2": 0.9972437584035142,
+        "MAPE": 1.6231269652825422
+    },
+    "features": [
+        "id",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "market_cap",
+        "pe_ratio",
+        "forward_pe",
+        "price_to_book",
+        "sma_50",
+        "ema_50",
+        "sma_200_weekly",
+        "macd",
+        "dma",
+        "rsi",
+        "bollinger_upper",
+        "bollinger_middle",
+        "bollinger_lower",
+        "obv"
+    ],
+    "model_path": "models\\Consumer Staples_model.json"
+}

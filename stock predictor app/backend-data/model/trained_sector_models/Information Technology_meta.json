@@ -1,0 +1,32 @@
+{
+    "sector": "Information Technology",
+    "metrics": {
+        "RMSE": 8.469493586085939,
+        "MAE": 4.4900171517246985,
+        "R2": 0.9944050750028331,
+        "MAPE": 3.2710125242221118
+    },
+    "features": [
+        "id",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "market_cap",
+        "pe_ratio",
+        "forward_pe",
+        "price_to_book",
+        "sma_50",
+        "ema_50",
+        "sma_200_weekly",
+        "macd",
+        "dma",
+        "rsi",
+        "bollinger_upper",
+        "bollinger_middle",
+        "bollinger_lower",
+        "obv"
+    ],
+    "model_path": "models\\Information Technology_model.json"
+}

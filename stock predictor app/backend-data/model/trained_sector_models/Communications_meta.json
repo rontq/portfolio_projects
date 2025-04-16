@@ -1,0 +1,32 @@
+{
+    "sector": "Communications",
+    "metrics": {
+        "RMSE": 1.4578468145948555,
+        "MAE": 0.7768841986875654,
+        "R2": 0.9871738414304863,
+        "MAPE": 1.9294253430051933
+    },
+    "features": [
+        "id",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "market_cap",
+        "pe_ratio",
+        "forward_pe",
+        "price_to_book",
+        "sma_50",
+        "ema_50",
+        "sma_200_weekly",
+        "macd",
+        "dma",
+        "rsi",
+        "bollinger_upper",
+        "bollinger_middle",
+        "bollinger_lower",
+        "obv"
+    ],
+    "model_path": "models\\Communications_model.json"
+}
