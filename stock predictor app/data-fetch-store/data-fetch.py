@@ -25,10 +25,10 @@ SECTOR_STOCKS = {
             "NVDA", "AMD", "INTC", "QCOM", "TXN", "AVGO", "MU", "ADI", "KLAC", "MRVL"
         ],
         "System Software": [
-            "MSFT", "NOW", "ORCL", "PANW", "FTNT", "ADBE", "CRM", "VMW", "SNOW", "WDAY"
+            "MSFT", "NOW", "ORCL", "PANW", "FTNT", "ADBE", "CRM", "SNOW", "WDAY", "DDOG"
         ],
         "IT Services & Consulting": [
-            "ACN", "IBM", "CDW", "EPAM", "CTSH", "INFY", "DXC", "GLOB", "BKI", "NTCT"
+            "ACN", "IBM", "CDW", "EPAM", "CTSH", "INFY", "DXC", "GLOB", "GEN", "NTCT"
         ],
         "Hardware & Peripherals": [
             "AAPL", "HPQ", "DELL", "LOGI", "ANET", "ZBRA", "HPE", "NTAP", "STX", "WDC"
@@ -46,7 +46,7 @@ SECTOR_STOCKS = {
             "AIG", "CB", "MET", "PRU", "TRV", "ALL", "PGR", "HIG", "LNC", "CINF"
         ],
         "Exchanges & Financial Services": [
-            "CME", "ICE", "NDAQ", "MKTX", "COIN", "INTU", "FIS", "FISV", "PYPL", "DFS"
+            "CME", "ICE", "NDAQ", "MKTX", "COIN", "INTU", "FIS", "GPN", "PYPL", "DFS"
         ]
     },
 
@@ -58,7 +58,7 @@ SECTOR_STOCKS = {
             "MDT", "SYK", "BSX", "ISRG", "ZBH", "EW", "STE", "BAX", "TFX", "PKI"
         ],
         "Healthcare Services": [
-            "UNH", "CI", "HUM", "CNC", "MCK", "CAH", "ABC", "ELV", "MOH", "HCA"
+            "UNH", "CI", "HUM", "CNC", "MCK", "CAH", "HCA", "ELV", "MOH", "HCA"
         ],
         "Biotech & Research": [
             "BIIB", "ILMN", "INCY", "NVAX", "EXEL", "CRSP", "BLUE", "ALNY", "SGEN", "GILD"
@@ -80,18 +80,33 @@ SECTOR_STOCKS = {
         ]
     },
 
+    "Industrials": {
+        "Aerospace & Defense": [
+            "BA", "LMT", "GD", "NOC", "RTX", "HII", "SPR", "TDG", "COL", "HEI"
+        ],
+        "Machinery": [
+            "CAT", "DE", "PCAR", "JOY", "UTX", "CIR", "CMI", "AOS", "MAN", "MTW"
+        ],
+        "Transportation": [
+            "UPS", "FDX", "CSX", "NSC", "TRK", "WAB", "UNP", "LSTR", "ODFL", "JBHT", "UBER"
+        ],
+        "Construction & Engineering": [
+            "FLR", "JEC", "KBR", "HIT", "TTEK", "STRL", "MTZ", "MTRX", "ACM", "PWR"
+        ]
+    },
+
     "Consumer Staples": {
         "Food & Beverage": [
             "KO", "PEP", "MDLZ", "K", "GIS", "CPB", "KHC", "HSY", "TSN", "CAG"
         ],
         "Retail & Distribution": [
-            "WMT", "COST", "KR", "TGT", "ACI", "SFM", "BJ", "WBA", "RAD", "CASY"
+            "WMT", "COST", "KR", "TGT", "ACI", "SFM", "BJ", "WBA", "CVS", "CASY"
         ],
         "Household Products": [
             "PG", "CL", "KMB", "CHD", "ECL", "NWL", "ENR", "SPB", "UL", "REYN"
         ],
         "Tobacco & Alcohol": [
-            "MO", "PM", "STZ", "BUD", "TAP", "DEO", "BF.B", "SAM", "HEINY", "CCEP"
+            "MO", "PM", "STZ", "BUD", "TAP", "DEO", "DEO", "SAM", "HEINY", "CCEP"
         ]
     },
 
@@ -103,10 +118,10 @@ SECTOR_STOCKS = {
             "DIS", "PARA", "FOXA", "WBD", "ROKU", "LYV", "IMAX", "SIRI", "SPOT", "CURI"
         ],
         "Telecom": [
-            "VZ", "T", "TMUS", "CHTR", "LUMN", "USM", "CNSL", "SHEN", "ATEX", "WOW"
+            "VZ", "T", "TMUS", "CHTR", "LUMN", "USM", "WIN", "SHEN", "ATEX", "WOW"
         ],
         "Gaming & Interactive Media": [
-            "EA", "TTWO", "ZNGA", "RBLX", "HUYA", "BILI", "PLTK", "U", "SKLZ", "NTES"
+            "EA", "TTWO", "RBLX", "HUYA", "BILI", "PLTK", "U", "SKLZ", "NTES"
         ]
     },
 
@@ -118,10 +133,10 @@ SECTOR_STOCKS = {
             "SRE", "NI", "UGI", "OKE", "ATO", "SWX", "NWN", "SR", "WMB", "CNP"
         ],
         "Renewables": [
-            "RUN", "ENPH", "SEDG", "FSLR", "NEP", "CWEN", "AY", "ORA", "TPIC", "SPWR"
+            "RUN", "ENPH", "SEDG", "FSLR", "NEP", "CWEN", "ORA", "TPIC"
         ],
         "Water Utilities": [
-            "AWK", "WTRG", "SJW", "YORW", "MSEX", "AWR", "CWCO", "ARTNA", "CTWS", "SBS"
+            "AWK", "WTRG", "SJW", "YORW", "MSEX", "AWR", "CWCO", "ARTNA", "SBS"
         ]
     }
 }
