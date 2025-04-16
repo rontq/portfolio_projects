@@ -1,3 +1,4 @@
+import os
 import yfinance as yf
 import pandas as pd
 import ta
@@ -8,14 +9,15 @@ from ta.trend import sma_indicator, ema_indicator, macd
 from ta.momentum import rsi
 from ta.volume import on_balance_volume
 from ta.volatility import BollingerBands
+from dotenv import load_dotenv
 
 # DB connect credentials
 DB_PARAMS = {
-    "dbname": "stock-market-table",
-    "user": "postgres",
-    "password": "db123",
-    "host": "localhost",
-    "port": "5432"
+    "dbname": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "port": os.getenv("DB_PORT"),
 }
 
 # Define sectors and respective tickers. Modeled after S&P500
@@ -133,7 +135,7 @@ SECTOR_STOCKS = {
             "SRE", "NI", "UGI", "OKE", "ATO", "SWX", "NWN", "SR", "WMB", "CNP"
         ],
         "Renewables": [
-            "RUN", "ENPH", "SEDG", "FSLR", "NEP", "CWEN", "ORA", "TPIC"
+            "RUN", "ENPH", "SEDG", "FSLR", "CWEN", "ORA", "TPIC"
         ],
         "Water Utilities": [
             "AWK", "WTRG", "SJW", "YORW", "MSEX", "AWR", "CWCO", "ARTNA", "SBS"
