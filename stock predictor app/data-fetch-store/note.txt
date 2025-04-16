@@ -3,6 +3,7 @@ This will hold the database schema, and the data fetching file.
 
 yfinance will serve as the access point for data retrieval.
 
+Data is stored so that its easier for triple architecture training.
 
 pswd db123
 port 5432

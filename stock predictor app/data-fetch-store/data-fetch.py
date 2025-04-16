@@ -61,7 +61,7 @@ SECTOR_STOCKS = {
             "UNH", "CI", "HUM", "CNC", "MCK", "CAH", "HCA", "ELV", "MOH", "HCA"
         ],
         "Biotech & Research": [
-            "BIIB", "ILMN", "INCY", "NVAX", "EXEL", "CRSP", "BLUE", "ALNY", "SGEN", "GILD"
+            "BIIB", "ILMN", "INCY", "NVAX", "EXEL", "CRSP", "BLUE", "ALNY", "GILD"
         ]
     },
 
@@ -85,13 +85,13 @@ SECTOR_STOCKS = {
             "BA", "LMT", "GD", "NOC", "RTX", "HII", "SPR", "TDG", "COL", "HEI"
         ],
         "Machinery": [
-            "CAT", "DE", "PCAR", "JOY", "UTX", "CIR", "CMI", "AOS", "MAN", "MTW"
+            "CAT", "DE", "PCAR", "SAND", "HON", "ITT", "CMI", "AOS", "MAN", "MTW"
         ],
         "Transportation": [
-            "UPS", "FDX", "CSX", "NSC", "TRK", "WAB", "UNP", "LSTR", "ODFL", "JBHT", "UBER"
+            "UPS", "FDX", "CSX", "NSC", "WAB", "UNP", "LSTR", "ODFL", "JBHT", "UBER"
         ],
         "Construction & Engineering": [
-            "FLR", "JEC", "KBR", "HIT", "TTEK", "STRL", "MTZ", "MTRX", "ACM", "PWR"
+            "FLR", "KBR", "HIT", "TTEK", "STRL", "MTZ", "MTRX", "ACM", "PWR"
         ]
     },
 
@@ -118,7 +118,7 @@ SECTOR_STOCKS = {
             "DIS", "PARA", "FOXA", "WBD", "ROKU", "LYV", "IMAX", "SIRI", "SPOT", "CURI"
         ],
         "Telecom": [
-            "VZ", "T", "TMUS", "CHTR", "LUMN", "USM", "WIN", "SHEN", "ATEX", "WOW"
+            "VZ", "T", "TMUS", "CHTR", "LUMN", "USM", "SHEN", "ATEX", "WOW"
         ],
         "Gaming & Interactive Media": [
             "EA", "TTWO", "RBLX", "HUYA", "BILI", "PLTK", "U", "SKLZ", "NTES"
