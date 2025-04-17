@@ -38,24 +38,28 @@ def fetch_all_data(conn):
 
 def preprocess(df):
     df = df.copy()
-    df = df.dropna()
-    
-    drop_cols = ['date', 'symbol', 'sector', 'subsector']
 
-    if 'target' in df.columns:
-        target = df['target']
-        df = df.drop(columns=drop_cols + ['target'])
-    else:
-        target = df['close'].shift(-1)  # Shift close price to create the target variable
-        df = df.drop(columns=drop_cols)
+    ohlcv_cols = ['open', 'close', 'high', 'low', 'volume']
+    df = df.dropna(subset=ohlcv_cols)
 
-    df = df.select_dtypes(include=['number', 'bool', 'category'])
-    target = target.dropna()
-    df = df.loc[target.index]
+    df = df.drop(columns=['date', 'symbol', 'sector', 'subsector'], errors='ignore')
 
-    # Check if data is still valid after preprocessing (i.e., no empty DataFrames)
+    # Convert pe_ratio safely to float
+    if 'pe_ratio' in df.columns:
+        df['pe_ratio'] = pd.to_numeric(df['pe_ratio'], errors='coerce')  # Turn anything non-numeric into NaN
+        if df['pe_ratio'].isna().all():
+            df.drop(columns=['pe_ratio'], inplace=True)
+
+    # Drop any other non-numeric columns silently
+    df = df.select_dtypes(include=[np.number])
+
+    # Prepare the target variable (next day's close)
+    target = df['close'].shift(-1)
+    df = df.iloc[:-1]
+    target = target.iloc[:-1]
+
     if df.empty or target.empty:
-        raise ValueError("No valid data left after preprocessing. Ensure the data has enough non-NaN entries.")
+        raise ValueError("No valid data left after preprocessing.")
 
     return df, target
 
@@ -79,18 +83,19 @@ def train_model(X, y):
 
     return model, y_test, preds
 
-def save_results(model, metrics, feature_names):
+def save_results(model, feature_names):
     save_path = SAVE_DIR / "all_market_model.joblib"
-    
-    # Combine model and metadata into a single dictionary
+
+    # Prepare data to save
     data_to_save = {
         "model": model,
-        "features": feature_names
+        "feature_names": feature_names,
     }
 
     # Save the entire bundle using joblib
     joblib.dump(data_to_save, save_path)
     print(f"📦 Model and metadata saved to {save_path}")
+
 
 def main():
     conn = get_db_connection()
@@ -107,10 +112,10 @@ def main():
         print("⚠️ Not enough data after preprocessing, skipping.")
         return
 
-    model, y_test, preds, metrics = train_model(X, y)
-    print(f"✅ Finished training — RMSE: {metrics['RMSE']:.4f}, R2: {metrics['R2']:.4f}")
+    model, y_test, preds = train_model(X, y)
+    print(f"✅ Finished training")
 
-    save_results(model, metrics, X.columns.tolist())
+    save_results(model, X.columns.tolist())  # Save model and feature names
 
     conn.close()
     print("\n🎉 All stock market data model trained and saved.")
