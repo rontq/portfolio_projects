@@ -5,3 +5,20 @@ Contains 4 types of data all stored in joblib.
     - Sub sector specific data
     - Individual company data.
 
+Each type of data will be trained with a model specifc to that scope.
+
+
+  +--------------------+        +---------------------+         +---------------------------+        +------------------+
+  |                    |        |                     |         |                           |        |                  |
+  |   data_fetch.py    |        |     PostgreSQL      |         |   machine_learning_model  |        |    trained_model |
+  |                    |        |    (stock_market    |         |                           |        |                  |
+  |    (Yahoo Finance) |  --->  |   _table database)  |  --->   | (train, test, and predict)|  --->  |  (save joblib)   |
+  |                    |        |                     |         |                           |        |                  |
+  +--------------------+        +---------------------+         +---------------------------+        +------------------+
+           |                           |                              |                                 |
+           | Fetch data (yfinance)     |                              |                                 |
+           |                           |                              |                                 |
+           +---------------------------> Push data (stocks, OHLCV, P/E, etc.) into PostgreSQL |
+                                      +---------------------------------------------> Process data (Preprocess, Indicators)
+                                                                        +-----------------------------> Train model (XGBoost)
+                                                                                               +------------------------> Save model (joblib)
