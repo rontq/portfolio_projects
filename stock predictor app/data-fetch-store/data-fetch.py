@@ -11,7 +11,7 @@ from ta.volume import on_balance_volume
 from ta.volatility import BollingerBands
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../credentials/.env'))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
 
 # DB connect credentials
 DB_PARAMS = {
@@ -26,7 +26,7 @@ DB_PARAMS = {
 SECTOR_STOCKS = {
     "Information Technology": {
         "Semiconductors": [
-            "NVDA", "AMD", "INTC", "QCOM", "TXN", "AVGO", "MU", "ADI", "KLAC", "MRVL"
+            "NVDA", "AMD", "TSM", "QCOM", "TXN", "AVGO", "MU", "ADI", "KLAC", "MRVL"
         ],
         "System Software": [
             "MSFT", "NOW", "ORCL", "PANW", "FTNT", "ADBE", "CRM", "SNOW", "WDAY", "DDOG"

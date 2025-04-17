@@ -39,16 +39,24 @@ def fetch_all_data(conn):
 def preprocess(df):
     df = df.copy()
     df = df.dropna()
+    
     drop_cols = ['date', 'symbol', 'sector', 'subsector']
 
     if 'target' in df.columns:
         target = df['target']
         df = df.drop(columns=drop_cols + ['target'])
     else:
-        target = df['close'].shift(-1)
+        target = df['close'].shift(-1)  # Shift close price to create the target variable
         df = df.drop(columns=drop_cols)
 
     df = df.select_dtypes(include=['number', 'bool', 'category'])
+    target = target.dropna()
+    df = df.loc[target.index]
+
+    # Check if data is still valid after preprocessing (i.e., no empty DataFrames)
+    if df.empty or target.empty:
+        raise ValueError("No valid data left after preprocessing. Ensure the data has enough non-NaN entries.")
+
     return df, target
 
 def train_model(X, y):
@@ -69,19 +77,7 @@ def train_model(X, y):
     y_test = y_test[mask]
     preds = preds[mask]
 
-    rmse = mean_squared_error(y_test, preds, squared=False)
-    mae = mean_absolute_error(y_test, preds)
-    r2 = r2_score(y_test, preds)
-    mape = np.mean(np.abs((y_test - preds) / y_test)) * 100
-
-    metrics = {
-        "RMSE": rmse,
-        "MAE": mae,
-        "R2": r2,
-        "MAPE": mape
-    }
-
-    return model, y_test, preds, metrics
+    return model, y_test, preds
 
 def save_results(model, metrics, feature_names):
     save_path = SAVE_DIR / "all_market_model.joblib"
@@ -89,7 +85,6 @@ def save_results(model, metrics, feature_names):
     # Combine model and metadata into a single dictionary
     data_to_save = {
         "model": model,
-        "metrics": metrics,
         "features": feature_names
     }
 

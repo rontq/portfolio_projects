@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import joblib
 from pathlib import Path
 
+
 # === CONFIG ===
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../credentials/.env'))
 
@@ -50,29 +51,52 @@ def fetch_sector_data(conn, sector):
 
 def preprocess(df):
     df = df.copy()
-    df = df.dropna()
-    drop_cols = ['date', 'symbol', 'sector', 'subsector']
 
-    if 'target' in df.columns:
-        target = df['target']
-        df = df.drop(columns=drop_cols + ['target'])
-    else:
-        target = df['close'].shift(-1)
-        df = df.drop(columns=drop_cols)
+    ohlcv_cols = ['open', 'close', 'high', 'low', 'volume']
+    df = df.dropna(subset=ohlcv_cols)
 
-    df = df.select_dtypes(include=['number', 'bool', 'category'])
+    df = df.drop(columns=['date', 'symbol', 'sector', 'subsector'], errors='ignore')
+
+    # Convert pe_ratio safely to float
+    if 'pe_ratio' in df.columns:
+        df['pe_ratio'] = pd.to_numeric(df['pe_ratio'], errors='coerce')  # Turn anything non-numeric into NaN
+        if df['pe_ratio'].isna().all():
+            df.drop(columns=['pe_ratio'], inplace=True)
+
+    # Drop any other non-numeric columns silently
+    df = df.select_dtypes(include=[np.number])
+
+    # Prepare the target variable (next day's close)
+    target = df['close'].shift(-1)
+    df = df.iloc[:-1]
+    target = target.iloc[:-1]
+
+    if df.empty or target.empty:
+        raise ValueError("No valid data left after preprocessing.")
+
     return df, target
+
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+import numpy as np
 
 def train_model(X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, shuffle=False)
 
+    # Remove NaNs from target values in the training and test sets
     y_train = y_train.dropna()
     y_test = y_test.dropna()
 
+    # Remove NaNs in feature sets (X_train, X_test)
+    X_train = X_train.loc[y_train.index]
+    X_test = X_test.loc[y_test.index]
+
     model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=100, enable_categorical=True)
+
     model.fit(X_train, y_train)
 
     preds = model.predict(X_test)
+
     min_len = min(len(y_test), len(preds))
     y_test = y_test.iloc[:min_len]
     preds = preds[:min_len]
@@ -81,28 +105,16 @@ def train_model(X, y):
     y_test = y_test[mask]
     preds = preds[mask]
 
-    rmse = mean_squared_error(y_test, preds, squared=False)
-    mae = mean_absolute_error(y_test, preds)
-    r2 = r2_score(y_test, preds)
-    mape = np.mean(np.abs((y_test - preds) / y_test)) * 100
+    return model, y_test, preds
 
-    metrics = {
-        "RMSE": rmse,
-        "MAE": mae,
-        "R2": r2,
-        "MAPE": mape
-    }
 
-    return model, y_test, preds, metrics
-
-def save_results(sector, model, metrics, feature_names):
+def save_results(sector, model, feature_names):
     save_path = SAVE_DIR / f"{sector}_model.joblib"
     
     # Combine model and metadata into a single dictionary
     data_to_save = {
         "sector": sector,
         "model": model,
-        "metrics": metrics,
         "features": feature_names
     }
 
@@ -132,10 +144,10 @@ def main():
             print(f"⚠️ Not enough data after preprocessing for {sector}, skipping.")
             continue
 
-        model, y_test, preds, metrics = train_model(X, y)
-        print(f"✅ Finished training {sector} — RMSE: {metrics['RMSE']:.4f}, R2: {metrics['R2']:.4f}")
+        model, y_test, preds = train_model(X, y)
+        print(f"✅ Finished training {sector}")
 
-        save_results(sector, model, metrics, X.columns.tolist())
+        save_results(sector, model, X.columns.tolist())
         trained_sectors.append(sector)
 
     conn.close()
