@@ -1,0 +1,7 @@
+This folder is mainly to hold ML related files either model files.
+Contains 4 types of data all stored in joblib.
+    - Total stock market data
+    - Sector specifc data.
+    - Sub sector specific data
+    - Individual company data.
+
