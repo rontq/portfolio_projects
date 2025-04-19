@@ -174,7 +174,7 @@ def create_table():
         print(e)
 
 
-#Give time to yfinance to get each ticker properly
+#Give time to yfinance to get each symbol properly
 def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=2):
     for attempt in range(retries):
         try:

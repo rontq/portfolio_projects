@@ -1,12 +1,10 @@
 import os
-import json
 import psycopg2
 import pandas as pd
 import xgboost as xgb
 import numpy as np
 import gc  # For clearing memory
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from dotenv import load_dotenv
 import joblib
 from pathlib import Path

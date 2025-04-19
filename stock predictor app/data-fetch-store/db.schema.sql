@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS stock_market_table;
-
+DROP TABLE IF EXISTS sector_index_table;
 CREATE TABLE stock_market_table (
     -- Note: All from yfinance for OCHLV and indicator values
 
@@ -34,4 +34,15 @@ CREATE TABLE stock_market_table (
     obv BIGINT
 );
 
+CREATE TABLE sector_index_table (
+    id SERIAL PRIMARY KEY,
+    sector_index TEXT,
+    subsector_index TEXT,
+    date TIMESTAMP NOT NULL,
+
+    market_cap BIGINT, -- calculated as share price * outstanding shares
+    index_val BIGINT,
+
+     UNIQUE (sector_index, subsector_index, date)
+);
 

@@ -22,3 +22,20 @@ Each type of data will be trained with a model specifc to that scope.
                                       +---------------------------------------------> Process data (Preprocess, Indicators)
                                                                         +-----------------------------> Train model (XGBoost)
                                                                                                +------------------------> Save model (joblib)
+
+
+
+
+
+[Raw Data] -> [Company-Level Preprocessing] -> [Train Company Models]
+                                     |
+                                     v
+                       [Predict Company Close Prices]
+                                     |
+                                     v
+      [Aggregate (market cap-weighted) predictions per sector]
+                                     |
+                                     v
+         [Compare with Actual Sector Index as Baseline]
+                 |                            |
+         [Prediction Error]        [Performance Insights]

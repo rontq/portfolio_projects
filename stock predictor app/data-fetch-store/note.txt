@@ -1,9 +1,14 @@
 This folder is mainly to hold all files regarding information storage and fetching.
+    raw data
+
 This will hold the database schema, and the data fetching file.
+This folder will also keep the data calculating the index, similar to index such as the SP500, NASDAQ, RUSSEL. 
 
-yfinance will serve as the access point for data retrieval.
+    index-sector-calc.py. (Sector specifc such as Information Technology and Communications)
 
-Data is stored so that its easier for quadruple architecture training.
+    index-subsector-calc.py (Smaller scope to cover smaller groups such as Semiconductors, Retail, Hardware Peripherals, and Investment banking)
+
+    These indexes will be used to have a baseline on how a sector or subsector is performing. 
 
 pswd db123
 port 5432
