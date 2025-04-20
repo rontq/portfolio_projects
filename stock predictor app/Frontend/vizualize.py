@@ -39,7 +39,7 @@ def plot_sector_index(df, sector_index_name):
     plt.show()
 
 if __name__ == "__main__":
-    sector = "Information Technology Index"  # You can change this
+    sector = "Consumer Staples Index"  # You can change this
     df = fetch_sector_index_data(sector)
     if not df.empty:
         plot_sector_index(df, sector)

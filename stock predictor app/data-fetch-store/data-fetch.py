@@ -1,19 +1,19 @@
 import os
+import time
 import yfinance as yf
 import pandas as pd
-import ta
-import time
 import psycopg2
 from psycopg2 import OperationalError, sql
-from ta.trend import sma_indicator, ema_indicator, macd
-from ta.momentum import rsi
-from ta.volume import on_balance_volume
-from ta.volatility import BollingerBands
 from dotenv import load_dotenv
+
+from ta.trend import SMAIndicator, EMAIndicator, MACD
+from ta.momentum import RSIIndicator
+from ta.volume import OnBalanceVolumeIndicator
+from ta.volatility import BollingerBands
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
 
-# DB connect credentials
+# Database connection parameters
 DB_PARAMS = {
     "dbname": os.getenv("DB_NAME"),
     "user": os.getenv("DB_USER"),
@@ -146,20 +146,24 @@ SECTOR_STOCKS = {
 }
 
 
+SECTOR_IDS = {name: idx for idx, name in enumerate(SECTOR_STOCKS.keys(), 1)}
+SUBSECTOR_IDS = {
+    subsector: idx
+    for sector in SECTOR_STOCKS
+    for idx, subsector in enumerate(SECTOR_STOCKS[sector].keys(), 1)
+}
+
 def test_database_connection():
-#   Test the PostgreSQL database connection before proceeding.
     try:
         conn = psycopg2.connect(**DB_PARAMS)
         conn.close()
         print("Successfully connected to PostgreSQL database.")
         return True
     except OperationalError as e:
-        print("Could not connect to the database:")
-        print(e)
+        print("Could not connect to the database:", e)
         return False
-    
+
 def create_table():
-#   Create stock_market_table if it doesn't exist, using schema.sql.
     try:
         conn = psycopg2.connect(**DB_PARAMS)
         cur = conn.cursor()
@@ -168,99 +172,123 @@ def create_table():
         conn.commit()
         cur.close()
         conn.close()
-        print(" Table created or already exists.")
+        print("Table created or already exists.")
     except Exception as e:
-        print(" Error creating table:")
-        print(e)
+        print("Error creating table:", e)
 
-
-#Give time to yfinance to get each symbol properly
-def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=2):
+def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=1, interval="1d"):
     for attempt in range(retries):
         try:
             ticker = yf.Ticker(symbol)
-            df = ticker.history(start=start_date)
+            df = ticker.history(start=start_date, interval=interval)  # Adjust interval here
             if df.empty:
                 raise ValueError(f"No data for {symbol}")
             df = df.reset_index()
+            df.columns = df.columns.str.lower()
             info = ticker.info
 
-            # Store valuation metrics (same for all rows)
             market_data = {
                 "market_cap": info.get("marketCap"),
                 "pe_ratio": info.get("trailingPE"),
                 "forward_pe": info.get("forwardPE"),
                 "price_to_book": info.get("priceToBook"),
             }
-
             break
         except Exception as e:
-            print(f"⏳ Retry {attempt + 1} for {symbol} due to error: {e}")
+            print(f"\u23f3 Retry {attempt + 1} for {symbol} due to error: {e}")
             time.sleep(sleep_sec)
     else:
-        print(f"❌ Giving up on {symbol} after {retries} retries")
+        print(f"\u274c Giving up on {symbol} after {retries} retries")
         return None, None
 
     try:
-        df["sma_50"] = sma_indicator(df["Close"], window=50)
-        df["ema_50"] = ema_indicator(df["Close"], window=50)
-        df["macd"] = macd(df["Close"])
-        df["dma"] = df["Close"] - df["sma_50"]
-        df["rsi"] = rsi(df["Close"])
+        close = df["close"]
+        volume = df["volume"]
 
-        bb = BollingerBands(df["Close"])
+        # Calculate technical indicators
+        for window in [5, 20, 50, 125, 200]:
+            df[f"sma_{window}"] = SMAIndicator(close, window=window).sma_indicator()
+            df[f"ema_{window}"] = EMAIndicator(close, window=window).ema_indicator()
+
+        df["macd"] = MACD(close).macd_diff()
+        df["dma"] = close - df["sma_50"]
+        df["rsi"] = RSIIndicator(close).rsi()
+
+        bb = BollingerBands(close)
         df["bollinger_upper"] = bb.bollinger_hband()
         df["bollinger_middle"] = bb.bollinger_mavg()
         df["bollinger_lower"] = bb.bollinger_lband()
 
-        df["obv"] = on_balance_volume(df["Close"], df["Volume"])
-        df["sma_200_weekly"] = df["Close"].rolling(window=200 * 5).mean()
+        df["obv"] = OnBalanceVolumeIndicator(close, volume).on_balance_volume()
+
+        # Calculate 200-week SMA (weekly data)
+        if interval == "1wk":
+            df["sma_200_weekly"] = df["close"].rolling(window=200).mean()  # Weekly SMA directly
+        else:
+            df["sma_200_weekly"] = close.rolling(window=200 * 5).mean()  # Daily data (5 days per week)
+
+        df["adj_close"] = close
+        df["market_cap_proxy"] = df["close"] * df["volume"]
 
         return df, market_data
 
     except Exception as e:
-        print(f"⚠️ Indicator calc failed for {symbol}: {e}")
+        print(f"\u26a0\ufe0f Indicator calc failed for {symbol}: {e}")
         return None, None
-
-
-
-
-
 def insert_data(symbol, sector, subsector, df, market_data):
     conn = psycopg2.connect(**DB_PARAMS)
     cur = conn.cursor()
 
+    sector_id = SECTOR_IDS.get(sector, None)
+    subsector_id = SUBSECTOR_IDS.get(subsector, None)
+
     for _, row in df.iterrows():
-        cur.execute(
-            sql.SQL("""
-                INSERT INTO stock_market_table (
-                    symbol, sector, subsector, date,
-                    open, high, low, close, volume,
-                    sma_50, ema_50, sma_200_weekly, macd, dma, rsi,
-                    bollinger_upper, bollinger_middle, bollinger_lower, obv,
-                    market_cap, pe_ratio, forward_pe, price_to_book
-                ) VALUES (
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s
+        if pd.isna(row["date"]):
+            continue
+        try:
+            cur.execute(
+                sql.SQL("""
+                    INSERT INTO stock_market_table (
+                        symbol, sector, subsector, date,
+                        open, high, low, close, volume, adj_close,
+                        sma_5, sma_20, sma_50, sma_125, sma_200, sma_200_weekly,
+                        ema_5, ema_20, ema_50, ema_125, ema_200,
+                        macd, dma, rsi,
+                        bollinger_upper, bollinger_middle, bollinger_lower, obv,
+                        market_cap_proxy, market_cap, pe_ratio, forward_pe, price_to_book,
+                        sector_id, subsector_id
+                    ) VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s
+                    )
+                """),
+                (
+                    symbol, sector, subsector, row["date"],
+                    row["open"], row["high"], row["low"], row["close"], row["volume"], row["adj_close"],
+                    row.get("sma_5"), row.get("sma_20"), row.get("sma_50"), row.get("sma_125"), row.get("sma_200"), row.get("sma_200_weekly"),
+                    row.get("ema_5"), row.get("ema_20"), row.get("ema_50"), row.get("ema_125"), row.get("ema_200"),
+                    row.get("macd"), row.get("dma"), row.get("rsi"),
+                    row.get("bollinger_upper"), row.get("bollinger_middle"), row.get("bollinger_lower"), row.get("obv"),
+                    row.get("market_cap_proxy"),
+                    market_data["market_cap"], market_data["pe_ratio"], market_data["forward_pe"], market_data["price_to_book"],
+                    sector_id, subsector_id
                 )
-            """),
-            (
-                symbol, sector, subsector, row["Date"],
-                row["Open"], row["High"], row["Low"], row["Close"], row["Volume"],
-                row["sma_50"], row["ema_50"], row["sma_200_weekly"], row["macd"], row["dma"], row["rsi"],
-                row["bollinger_upper"], row["bollinger_middle"], row["bollinger_lower"], row["obv"],
-                market_data["market_cap"], market_data["pe_ratio"], market_data["forward_pe"],
-                market_data["price_to_book"]
             )
-        )
+        except Exception as e:
+            print(f"❌ Failed to insert row for {symbol} on {row['date']}: {e}")
+            print("Row contents (preview):")
+            print(row.to_dict())
+            conn.rollback()  # <- THIS resets the transaction state
 
     conn.commit()
     cur.close()
     conn.close()
-
 
 if __name__ == "__main__":
     if test_database_connection():
@@ -268,12 +296,12 @@ if __name__ == "__main__":
         for sector, subsectors in SECTOR_STOCKS.items():
             for subsector, symbols in subsectors.items():
                 for symbol in symbols:
-                    print(f"📈 Fetching {symbol} ({sector} - {subsector})...")
+                    print(f"\U0001f4c8 Fetching {symbol} ({sector} - {subsector})...")
                     try:
                         df, market_data = fetch_stock_data(symbol)
                         if df is not None and not df.empty:
                             insert_data(symbol, sector, subsector, df, market_data)
                     except Exception as e:
-                        print(f"⚠️ Failed to process {symbol}: {e}")
+                        print(f"\u26a0\ufe0f Failed to process {symbol}: {e}")
     else:
-        print("❌ Failed DB Connection.")
+        print("\u274c Failed DB Connection.")
