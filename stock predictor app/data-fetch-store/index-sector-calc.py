@@ -29,7 +29,7 @@ def calculate_sector_indexes():
     cur = conn.cursor()
 
     for sector in SECTORS:
-        print(f"📊 Processing sector: {sector}")
+        print(f"\U0001f4ca Processing sector: {sector}")
 
         # Step 1: Load all daily stock data with market_cap_proxy
         cur.execute(""" 
@@ -44,7 +44,6 @@ def calculate_sector_indexes():
             print(f"⚠️ No data for {sector}")
             continue
 
-        # Organize by date and prepare price tracking
         data_by_date = defaultdict(list)
         prices_by_symbol = defaultdict(dict)
         proxy_cap_baseline = {}
@@ -59,7 +58,6 @@ def calculate_sector_indexes():
         baseline_date = sorted_dates[0]
         baseline_data = data_by_date[baseline_date]
 
-        # Step 2: Calculate baseline weights from proxy market caps
         total_baseline_cap = 0
         for symbol, close, cap_proxy, *_ in baseline_data:
             if cap_proxy:
@@ -75,10 +73,8 @@ def calculate_sector_indexes():
             for symbol, cap in proxy_cap_baseline.items()
         }
 
-        # Track previous day's index value for return calculation
         previous_index = None
 
-        # Step 3: Calculate index and metrics per date
         for date in sorted_dates:
             daily_data = data_by_date[date]
             index_val = 0
@@ -102,54 +98,56 @@ def calculate_sector_indexes():
 
             final_index_value = round(index_val * 1000, 2)
 
-            # Calculate the average return as the percentage change from the previous day
+            return_vs_previous = None
             if previous_index is not None:
-                avg_return = round(((final_index_value - previous_index) / previous_index) * 100, 2)
-            else:
-                avg_return = None  # No prior day to compare for the first day
+                return_vs_previous = round(((final_index_value - previous_index) / previous_index) * 100, 2)
 
             weighted_ret = round(weighted_return, 5) if constituent_count else None
 
-            # Aggregate current market cap using the proxy
             cur.execute(""" 
-                SELECT SUM(market_cap_proxy)
+                SELECT 
+                SUM(0.3 * market_cap + 0.7 * market_cap_proxy)
                 FROM stock_market_table
                 WHERE sector = %s AND date = %s
-            """, (sector, date))
+                """, (sector, date))
             cap_result = cur.fetchone()
             current_cap = cap_result[0] if cap_result and cap_result[0] else None
 
-            # Step 4: Insert/update index table
             cur.execute(""" 
                 INSERT INTO sector_index_table (
-                    sector, subsector, date, market_cap, index_value,
-                    total_volume, average_return, weighted_return, num_constituents
+                    sector, subsector, is_subsector, date,
+                    index_value, market_cap, total_volume,
+                    average_return, weighted_return, return_vs_previous,
+                    num_constituents
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s,
+                        %s)
                 ON CONFLICT (sector, subsector, date)
                 DO UPDATE SET
-                    market_cap = EXCLUDED.market_cap,
                     index_value = EXCLUDED.index_value,
+                    market_cap = EXCLUDED.market_cap,
                     total_volume = EXCLUDED.total_volume,
                     average_return = EXCLUDED.average_return,
                     weighted_return = EXCLUDED.weighted_return,
+                    return_vs_previous = EXCLUDED.return_vs_previous,
                     num_constituents = EXCLUDED.num_constituents
             """, (
-                sector, None, date, current_cap, final_index_value,
-                total_volume, avg_return, weighted_ret, constituent_count
+                sector, None, False, date,
+                final_index_value, current_cap, total_volume,
+                return_vs_previous, weighted_ret, return_vs_previous,
+                constituent_count
             ))
 
-            # Output progress
-            print(f"✅ {sector} - {date}: Index = {final_index_value}, Avg Return = {avg_return}%")
-
-            # Update the previous_index for the next day comparison
+            print(f"✅ {sector} - {date}: Index = {final_index_value}, Return = {return_vs_previous}%")
             previous_index = final_index_value
 
         conn.commit()
 
     cur.close()
     conn.close()
-    print("🏁 Sector index calculation completed.")
+    print("\U0001f3c1 Sector index calculation completed.")
 
 
 if __name__ == "__main__":

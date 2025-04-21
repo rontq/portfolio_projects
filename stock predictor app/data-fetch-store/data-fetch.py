@@ -146,6 +146,7 @@ SECTOR_STOCKS = {
 }
 
 
+# For masking purposes
 SECTOR_IDS = {name: idx for idx, name in enumerate(SECTOR_STOCKS.keys(), 1)}
 SUBSECTOR_IDS = {
     subsector: idx
@@ -176,11 +177,22 @@ def create_table():
     except Exception as e:
         print("Error creating table:", e)
 
-def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=1, interval="1d"):
+def fetch_vix_data(start_date="2010-01-01"):
+    try:
+        vix = yf.Ticker("^VIX")
+        df = vix.history(start=start_date).reset_index()
+        df = df[["Date", "Close"]].rename(columns={"Date": "date", "Close": "vix_close"})
+        df["date"] = pd.to_datetime(df["date"]).dt.date
+        return df
+    except Exception as e:
+        print("Failed to fetch VIX data:", e)
+        return pd.DataFrame()
+
+def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=2):
     for attempt in range(retries):
         try:
             ticker = yf.Ticker(symbol)
-            df = ticker.history(start=start_date, interval=interval)  # Adjust interval here
+            df = ticker.history(start=start_date)
             if df.empty:
                 raise ValueError(f"No data for {symbol}")
             df = df.reset_index()
@@ -205,7 +217,6 @@ def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=1, in
         close = df["close"]
         volume = df["volume"]
 
-        # Calculate technical indicators
         for window in [5, 20, 50, 125, 200]:
             df[f"sma_{window}"] = SMAIndicator(close, window=window).sma_indicator()
             df[f"ema_{window}"] = EMAIndicator(close, window=window).ema_indicator()
@@ -220,27 +231,26 @@ def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=1, in
         df["bollinger_lower"] = bb.bollinger_lband()
 
         df["obv"] = OnBalanceVolumeIndicator(close, volume).on_balance_volume()
-
-        # Calculate 200-week SMA (weekly data)
-        if interval == "1wk":
-            df["sma_200_weekly"] = df["close"].rolling(window=200).mean()  # Weekly SMA directly
-        else:
-            df["sma_200_weekly"] = close.rolling(window=200 * 5).mean()  # Daily data (5 days per week)
+        df["sma_200_weekly"] = close.rolling(window=200 * 5).mean()
 
         df["adj_close"] = close
         df["market_cap_proxy"] = df["close"] * df["volume"]
+        df["date"] = pd.to_datetime(df["date"]).dt.date
 
         return df, market_data
 
     except Exception as e:
         print(f"\u26a0\ufe0f Indicator calc failed for {symbol}: {e}")
         return None, None
-def insert_data(symbol, sector, subsector, df, market_data):
+
+def insert_data(symbol, sector, subsector, df, market_data, vix_df):
     conn = psycopg2.connect(**DB_PARAMS)
     cur = conn.cursor()
 
     sector_id = SECTOR_IDS.get(sector, None)
     subsector_id = SUBSECTOR_IDS.get(subsector, None)
+
+    df = df.merge(vix_df, on="date", how="left")
 
     for _, row in df.iterrows():
         if pd.isna(row["date"]):
@@ -249,42 +259,52 @@ def insert_data(symbol, sector, subsector, df, market_data):
             cur.execute(
                 sql.SQL("""
                     INSERT INTO stock_market_table (
-                        symbol, sector, subsector, date,
-                        open, high, low, close, volume, adj_close,
-                        sma_5, sma_20, sma_50, sma_125, sma_200, sma_200_weekly,
-                        ema_5, ema_20, ema_50, ema_125, ema_200,
-                        macd, dma, rsi,
-                        bollinger_upper, bollinger_middle, bollinger_lower, obv,
-                        market_cap_proxy, market_cap, pe_ratio, forward_pe, price_to_book,
-                        sector_id, subsector_id
-                    ) VALUES (
-                        %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s,
-                        %s, %s, %s,
-                        %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s,
-                        %s, %s
-                    )
-                """),
-                (
-                    symbol, sector, subsector, row["date"],
-                    row["open"], row["high"], row["low"], row["close"], row["volume"], row["adj_close"],
-                    row.get("sma_5"), row.get("sma_20"), row.get("sma_50"), row.get("sma_125"), row.get("sma_200"), row.get("sma_200_weekly"),
-                    row.get("ema_5"), row.get("ema_20"), row.get("ema_50"), row.get("ema_125"), row.get("ema_200"),
-                    row.get("macd"), row.get("dma"), row.get("rsi"),
-                    row.get("bollinger_upper"), row.get("bollinger_middle"), row.get("bollinger_lower"), row.get("obv"),
-                    row.get("market_cap_proxy"),
-                    market_data["market_cap"], market_data["pe_ratio"], market_data["forward_pe"], market_data["price_to_book"],
-                    sector_id, subsector_id
+                    symbol, sector, subsector, date,
+                    open, high, low, close, volume, adj_close,
+                    sma_5, sma_20, sma_50, sma_125, sma_200, sma_200_weekly,
+                    ema_5, ema_20, ema_50, ema_125, ema_200,
+                    macd, dma, rsi,
+                    bollinger_upper, bollinger_middle, bollinger_lower, obv,
+                    pe_ratio, forward_pe, price_to_book,
+                    market_cap, market_cap_proxy,
+                    sector_id, subsector_id,
+                    sector_weight, subsector_weight, vix_close,
+                    future_return_1d, future_movement_class
                 )
+                VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s,
+                    %s, %s,
+                    %s, %s, %s,
+                    %s, %s
+                )
+                ON CONFLICT (symbol, date) DO NOTHING
+            """),
+            (
+                symbol, sector, subsector, row["date"],
+                row["open"], row["high"], row["low"], row["close"], row["volume"], row["adj_close"],
+                row.get("sma_5"), row.get("sma_20"), row.get("sma_50"), row.get("sma_125"), row.get("sma_200"), row.get("sma_200_weekly"),
+                row.get("ema_5"), row.get("ema_20"), row.get("ema_50"), row.get("ema_125"), row.get("ema_200"),
+                row.get("macd"), row.get("dma"), row.get("rsi"),
+                row.get("bollinger_upper"), row.get("bollinger_middle"), row.get("bollinger_lower"), row.get("obv"),
+                market_data["pe_ratio"], market_data["forward_pe"], market_data["price_to_book"],
+                market_data["market_cap"], row.get("market_cap_proxy"),
+                sector_id, subsector_id,
+                row.get("sector_weight"), row.get("subsector_weight"), row.get("vix_close"),
+                row.get("future_return_1d"), row.get("future_movement_class")
             )
+)
         except Exception as e:
-            print(f"❌ Failed to insert row for {symbol} on {row['date']}: {e}")
+            print(f"\u274c Failed to insert row for {symbol} on {row['date']}: {e}")
             print("Row contents (preview):")
             print(row.to_dict())
-            conn.rollback()  # <- THIS resets the transaction state
+            conn.rollback()
 
     conn.commit()
     cur.close()
@@ -293,6 +313,7 @@ def insert_data(symbol, sector, subsector, df, market_data):
 if __name__ == "__main__":
     if test_database_connection():
         create_table()
+        vix_df = fetch_vix_data()
         for sector, subsectors in SECTOR_STOCKS.items():
             for subsector, symbols in subsectors.items():
                 for symbol in symbols:
@@ -300,7 +321,7 @@ if __name__ == "__main__":
                     try:
                         df, market_data = fetch_stock_data(symbol)
                         if df is not None and not df.empty:
-                            insert_data(symbol, sector, subsector, df, market_data)
+                            insert_data(symbol, sector, subsector, df, market_data, vix_df)
                     except Exception as e:
                         print(f"\u26a0\ufe0f Failed to process {symbol}: {e}")
     else:
