@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS stock_market_table;
 DROP TABLE IF EXISTS sector_index_table;
 
 CREATE TABLE stock_market_table (
+    -- Company level data
     id SERIAL PRIMARY KEY,
     symbol TEXT NOT NULL,
     sector TEXT,
