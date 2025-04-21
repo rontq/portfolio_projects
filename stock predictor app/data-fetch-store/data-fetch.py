@@ -116,7 +116,7 @@ SECTOR_STOCKS = {
 
     "Communications": {
         "Internet Services": [
-            "GOOGL", "META", "NFLX", "ZM", "TWLO", "DDOG", "DOCN", "ABNB", "DUOL", "YELP"
+            "GOOGL", "META", "NFLX", "ZM", "TWLO", "DDOG", "DOCN", "ABNB", "DUOL", "GOOG"
         ],
         "Media & Entertainment": [
             "DIS", "PARA", "FOXA", "WBD", "ROKU", "LYV", "IMAX", "SIRI", "SPOT", "CURI"
