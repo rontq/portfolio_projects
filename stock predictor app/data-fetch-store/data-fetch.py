@@ -26,13 +26,16 @@ DB_PARAMS = {
 SECTOR_STOCKS = {
     "Information Technology": {
         "Semiconductors": [
-            "NVDA", "AMD", "TSM", "QCOM", "TXN", "AVGO", "MU", "ADI", "KLAC", "MRVL"
+            "NVDA", "AMD", "TSM", "QCOM", "TXN", "AVGO", "MU", "ADI", "KLAC", "MRVL",
+            "NXPI", "LSCC", "ON", "ASML", "ACLS"
         ],
         "System Software": [
-            "MSFT", "NOW", "ORCL", "PANW", "FTNT", "ADBE", "CRM", "SNOW", "WDAY", "DDOG"
+            "MSFT", "NOW", "ORCL", "PANW", "FTNT", "ADBE", "CRM", "SNOW", "WDAY", "DDOG",
+            "ZS", "OKTA", "CRWD", "S", "TENB"
         ],
         "IT Services & Consulting": [
-            "ACN", "IBM", "CDW", "EPAM", "CTSH", "INFY", "DXC", "GLOB", "GEN", "NTCT"
+            "ACN", "IBM", "CDW", "EPAM", "CTSH", "INFY", "DXC", "GLOB", "GEN", "NTCT",
+            "SAP", "HDB"
         ],
         "Hardware & Peripherals": [
             "AAPL", "HPQ", "DELL", "LOGI", "ANET", "ZBRA", "HPE", "NTAP", "STX", "WDC"
@@ -41,7 +44,8 @@ SECTOR_STOCKS = {
 
     "Financials": {
         "Banks": [
-            "JPM", "BAC", "WFC", "C", "USB", "PNC", "TFC", "FITB", "KEY", "RF"
+            "JPM", "BAC", "WFC", "C", "USB", "PNC", "TFC", "FITB", "KEY", "RF",
+            "TD", "RY", "BNS"
         ],
         "Investment Management": [
             "GS", "MS", "BLK", "SCHW", "AMP", "TROW", "IVZ", "BX", "KKR", "APO"
@@ -50,7 +54,8 @@ SECTOR_STOCKS = {
             "AIG", "CB", "MET", "PRU", "TRV", "ALL", "PGR", "HIG", "LNC", "CINF"
         ],
         "Exchanges & Financial Services": [
-            "CME", "ICE", "NDAQ", "MKTX", "COIN", "INTU", "FIS", "GPN", "PYPL", "DFS"
+            "CME", "ICE", "NDAQ", "MKTX", "COIN", "INTU", "FIS", "GPN", "PYPL", "DFS",
+            "SOFI", "HOOD"
         ]
     },
 
@@ -59,19 +64,21 @@ SECTOR_STOCKS = {
             "PFE", "MRK", "LLY", "BMY", "ABBV", "AMGN", "GILD", "VRTX", "ZTS", "REGN"
         ],
         "Healthcare Equipment": [
-            "MDT", "SYK", "BSX", "ISRG", "ZBH", "EW", "STE", "BAX", "TFX", "PKI"
+            "MDT", "SYK", "BSX", "ISRG", "ZBH", "EW", "STE", "BAX", "TFX",
+            "DXCM", "INSP", "NVCR"
         ],
         "Healthcare Services": [
-            "UNH", "CI", "HUM", "CNC", "MCK", "CAH", "HCA", "ELV", "MOH", "HCA"
+            "UNH", "CI", "HUM", "CNC", "MCK", "CAH", "HCA", "ELV", "MOH"
         ],
         "Biotech & Research": [
-            "BIIB", "ILMN", "INCY", "NVAX", "EXEL", "CRSP", "BLUE", "ALNY", "GILD"
+            "BIIB", "ILMN", "INCY", "NVAX", "EXEL", "CRSP", "BLUE", "ALNY", "BNTX", "SAGE"
         ]
     },
 
     "Consumer Discretionary": {
         "Retail": [
-            "AMZN", "HD", "LOW", "TGT", "BBY", "ROST", "TJX", "DG", "FIVE", "WSM"
+            "AMZN", "HD", "LOW", "TGT", "BBY", "ROST", "TJX", "DG", "FIVE", "WSM",
+            "ETSY", "CHWY", "FVRR", "SHOP"
         ],
         "Automotive": [
             "TSLA", "F", "GM", "HOG", "LCID", "RIVN", "NIO", "XPEV", "STLA", "TM"
@@ -86,7 +93,8 @@ SECTOR_STOCKS = {
 
     "Industrials": {
         "Aerospace & Defense": [
-            "BA", "LMT", "GD", "NOC", "RTX", "HII", "SPR", "TDG", "COL", "HEI"
+            "BA", "LMT", "GD", "NOC", "RTX", "HII", "SPR", "TDG", "COL", "HEI",
+            "GE", "SPCE"
         ],
         "Machinery": [
             "CAT", "DE", "PCAR", "SAND", "HON", "ITT", "CMI", "AOS", "MAN", "MTW"
@@ -110,7 +118,7 @@ SECTOR_STOCKS = {
             "PG", "CL", "KMB", "CHD", "ECL", "NWL", "ENR", "SPB", "UL", "REYN"
         ],
         "Tobacco & Alcohol": [
-            "MO", "PM", "STZ", "BUD", "TAP", "DEO", "DEO", "SAM", "HEINY", "CCEP"
+            "MO", "PM", "STZ", "BUD", "TAP", "DEO", "SAM", "HEINY", "CCEP"
         ]
     },
 
@@ -142,9 +150,47 @@ SECTOR_STOCKS = {
         "Water Utilities": [
             "AWK", "WTRG", "SJW", "YORW", "MSEX", "AWR", "CWCO", "ARTNA", "SBS"
         ]
+    },
+
+    "Real Estate": {
+        "REITs": [
+            "O", "SPG", "PLD", "VTR", "AVB", "EXR", "DLR", "EQR", "MAA", "ARE"
+        ],
+        "Real Estate Services": [
+            "CBRE", "JLL", "Z", "RDFN", "COMP"
+        ]
+    },
+
+    "Materials": {
+        "Chemicals": [
+            "LIN", "DD", "DOW", "CE", "ALB", "MOS", "FMC"
+        ],
+        "Construction Materials": [
+            "MLM", "VMC", "EXP"
+        ],
+        "Metals & Mining": [
+            "NEM", "FCX", "X", "AA", "CLF", "ARCH", "HL", "SCCO", "VALE"
+        ],
+        "Paper & Packaging": [
+            "IP", "PKG",
+        ]
+    },
+
+    "Energy": {
+        "Oil & Gas Producers": [
+            "XOM", "CVX", "COP", "EOG", "OXY", "DVN", "FANG", "APA"
+        ],
+        "Oil & Gas Equipment & Services": [
+            "SLB", "HAL", "BKR", "NOV", "CHX"
+        ],
+        "Midstream & Pipelines": [
+            "KMI", "WMB", "ENB", "ET", "OKE"
+        ],
+        "Renewable & Integrated Energy": [
+            "NEE", "DUK", "D", "BEP", "CWEN"
+        ]
     }
 }
-
 
 # For masking purposes
 SECTOR_IDS = {name: idx for idx, name in enumerate(SECTOR_STOCKS.keys(), 1)}
@@ -204,6 +250,7 @@ def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=2):
                 "pe_ratio": info.get("trailingPE"),
                 "forward_pe": info.get("forwardPE"),
                 "price_to_book": info.get("priceToBook"),
+                "is_adr": info.get("quoteType") == "ADR"
             }
             break
         except Exception as e:
@@ -235,7 +282,14 @@ def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=2):
 
         df["adj_close"] = close
         df["market_cap_proxy"] = df["close"] * df["volume"]
-        df["date"] = pd.to_datetime(df["date"]).dt.date
+        df["date"] = pd.to_datetime(df["date"])
+        df["day_of_week"] = df["date"].dt.dayofweek + 1
+        df["week_of_year"] = df["date"].dt.isocalendar().week
+
+        for window in [5, 10, 20, 40]:
+            df[f"volatility_{window}d"] = df["close"].rolling(window).std()
+
+        df["date"] = df["date"].dt.date
 
         return df, market_data
 
@@ -259,47 +313,49 @@ def insert_data(symbol, sector, subsector, df, market_data, vix_df):
             cur.execute(
                 sql.SQL("""
                     INSERT INTO stock_market_table (
-                    symbol, sector, subsector, date,
-                    open, high, low, close, volume, adj_close,
-                    sma_5, sma_20, sma_50, sma_125, sma_200, sma_200_weekly,
-                    ema_5, ema_20, ema_50, ema_125, ema_200,
-                    macd, dma, rsi,
-                    bollinger_upper, bollinger_middle, bollinger_lower, obv,
-                    pe_ratio, forward_pe, price_to_book,
-                    market_cap, market_cap_proxy,
+                        symbol, sector, subsector, date, day_of_week, week_of_year, is_adr,
+                        open, high, low, close, volume, adj_close,
+                        sma_5, sma_20, sma_50, sma_125, sma_200, sma_200_weekly,
+                        ema_5, ema_20, ema_50, ema_125, ema_200,
+                        macd, dma, rsi,
+                        bollinger_upper, bollinger_middle, bollinger_lower, obv,
+                        pe_ratio, forward_pe, price_to_book,
+                        volatility_5d, volatility_10d, volatility_20d, volatility_40d,
+                        market_cap, market_cap_proxy,
+                        sector_id, subsector_id,
+                        sector_weight, subsector_weight, vix_close,
+                        future_return_1d, future_movement_class
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s,
+                        %s, %s,
+                        %s, %s, %s,
+                        %s, %s
+                    )
+                    ON CONFLICT (symbol, date) DO NOTHING
+                """),
+                (
+                    symbol, sector, subsector, row["date"], row["day_of_week"], row["week_of_year"], market_data.get("is_adr", False),
+                    row["open"], row["high"], row["low"], row["close"], row["volume"], row["adj_close"],
+                    row.get("sma_5"), row.get("sma_20"), row.get("sma_50"), row.get("sma_125"), row.get("sma_200"), row.get("sma_200_weekly"),
+                    row.get("ema_5"), row.get("ema_20"), row.get("ema_50"), row.get("ema_125"), row.get("ema_200"),
+                    row.get("macd"), row.get("dma"), row.get("rsi"),
+                    row.get("bollinger_upper"), row.get("bollinger_middle"), row.get("bollinger_lower"), row.get("obv"),
+                    market_data["pe_ratio"], market_data["forward_pe"], market_data["price_to_book"],
+                    row.get("volatility_5d"), row.get("volatility_10d"), row.get("volatility_20d"), row.get("volatility_40d"),
+                    market_data["market_cap"], row.get("market_cap_proxy"),
                     sector_id, subsector_id,
-                    sector_weight, subsector_weight, vix_close,
-                    future_return_1d, future_movement_class
+                    row.get("sector_weight"), row.get("subsector_weight"), row.get("vix_close"),
+                    row.get("future_return_1d"), row.get("future_movement_class")
                 )
-                VALUES (
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s,
-                    %s, %s,
-                    %s, %s,
-                    %s, %s, %s,
-                    %s, %s
-                )
-                ON CONFLICT (symbol, date) DO NOTHING
-            """),
-            (
-                symbol, sector, subsector, row["date"],
-                row["open"], row["high"], row["low"], row["close"], row["volume"], row["adj_close"],
-                row.get("sma_5"), row.get("sma_20"), row.get("sma_50"), row.get("sma_125"), row.get("sma_200"), row.get("sma_200_weekly"),
-                row.get("ema_5"), row.get("ema_20"), row.get("ema_50"), row.get("ema_125"), row.get("ema_200"),
-                row.get("macd"), row.get("dma"), row.get("rsi"),
-                row.get("bollinger_upper"), row.get("bollinger_middle"), row.get("bollinger_lower"), row.get("obv"),
-                market_data["pe_ratio"], market_data["forward_pe"], market_data["price_to_book"],
-                market_data["market_cap"], row.get("market_cap_proxy"),
-                sector_id, subsector_id,
-                row.get("sector_weight"), row.get("subsector_weight"), row.get("vix_close"),
-                row.get("future_return_1d"), row.get("future_movement_class")
             )
-)
         except Exception as e:
             print(f"\u274c Failed to insert row for {symbol} on {row['date']}: {e}")
             print("Row contents (preview):")

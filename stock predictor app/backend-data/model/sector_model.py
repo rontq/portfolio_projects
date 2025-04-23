@@ -1,156 +1,142 @@
 import os
-import psycopg2
 import pandas as pd
+import joblib
 import xgboost as xgb
 import numpy as np
-import gc  # For clearing memory
-from sklearn.model_selection import train_test_split
+import gc
+from sklearn.metrics import mean_squared_error
 from dotenv import load_dotenv
-import joblib
-from pathlib import Path
+import psycopg2
 
-
-# === CONFIG ===
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../credentials/.env'))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
 
 DB_CONFIG = {
     "dbname": os.getenv("DB_NAME"),
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
     "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
+    "port": os.getenv("DB_PORT")
 }
 
-SECTORS = [
-    "Information Technology",
-    "Financials",
-    "Healthcare",
-    "Consumer Discretionary",
-    "Industrials",
-    "Consumer Staples",
-    "Communications",
-    "Utilities"
-]
-
-MODEL_DIR = "trained_sector_models"
-SAVE_DIR = Path(MODEL_DIR)
-SAVE_DIR.mkdir(exist_ok=True)
-
-def get_db_connection():
-    return psycopg2.connect(**DB_CONFIG)
-
-def fetch_sector_data(conn, sector):
+def fetch_sector_data(sector):
+    conn = psycopg2.connect(**DB_CONFIG)
     query = """
-    SELECT * FROM stock_market_table
-    WHERE sector = %s
-    ORDER BY symbol, date;
+        SELECT * FROM stock_market_table
+        WHERE sector = %s AND future_return_1d IS NOT NULL
+        ORDER BY symbol, date
     """
-    return pd.read_sql(query, conn, params=(sector,))
+    df = pd.read_sql(query, conn, params=(sector,))
 
-def preprocess(df):
-    df = df.copy()
+    index_query = """
+        SELECT * FROM sector_index_table
+        WHERE sector = %s
+    """
+    index_df = pd.read_sql(index_query, conn, params=(sector,))
+    conn.close()
+    return df, index_df
 
-    ohlcv_cols = ['open', 'close', 'high', 'low', 'volume']
-    df = df.dropna(subset=ohlcv_cols)
+def assign_symbol_ids(df, start_id=100, symbol_col="symbol", id_col="symbol_id"):
+    current_symbol = None
+    current_id = start_id
+    id_map = {}
+    ids = []
 
-    df = df.drop(columns=['date', 'symbol', 'sector', 'subsector'], errors='ignore')
+    for symbol in df[symbol_col]:
+        if symbol != current_symbol:
+            current_symbol = symbol
+            if symbol not in id_map:
+                id_map[symbol] = current_id
+                current_id += 1
+        ids.append(id_map[symbol])
 
-    # Convert pe_ratio safely to float
-    if 'pe_ratio' in df.columns:
-        df['pe_ratio'] = pd.to_numeric(df['pe_ratio'], errors='coerce')  # Turn anything non-numeric into NaN
-        if df['pe_ratio'].isna().all():
-            df.drop(columns=['pe_ratio'], inplace=True)
+    df[id_col] = ids
+    return df, id_map
 
-    # Drop any other non-numeric columns silently
-    df = df.select_dtypes(include=[np.number])
+def enrich_with_index_features(company_df, index_df):
+    sector_level = index_df[index_df["is_subsector"] == False].copy()
+    subsector_level = index_df[index_df["is_subsector"] == True].copy()
 
-    # Prepare the target variable (next day's close)
-    target = df['close'].shift(-1)
-    df = df.iloc[:-1]
-    target = target.iloc[:-1]
+    enriched = company_df.merge(
+        sector_level.add_prefix("sector_"),
+        left_on=["sector", "date"],
+        right_on=["sector_sector", "sector_date"],
+        how="left"
+    )
 
-    if df.empty or target.empty:
-        raise ValueError("No valid data left after preprocessing.")
+    enriched = enriched.merge(
+        subsector_level.add_prefix("subsector_"),
+        left_on=["sector", "subsector", "date"],
+        right_on=["subsector_sector", "subsector_subsector", "subsector_date"],
+        how="left"
+    )
 
-    return df, target
+    return enriched
 
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
-import numpy as np
+def preprocess(df, index_df):
+    df = df.sort_values(["symbol", "date"])
+    df, symbol_map = assign_symbol_ids(df)
+    df = enrich_with_index_features(df, index_df)
+
+    features = [
+        'open', 'high', 'low', 'close', 'volume', 'adj_close',
+        'sma_5', 'sma_20', 'sma_50', 'sma_125', 'sma_200', 'sma_200_weekly',
+        'ema_5', 'ema_20', 'ema_50', 'ema_125', 'ema_200',
+        'macd', 'dma', 'rsi',
+        'bollinger_upper', 'bollinger_middle', 'bollinger_lower', 'obv',
+        'market_cap', 'market_cap_proxy', 'sector_id', 'subsector_id',
+        'sector_weight', 'subsector_weight', 'vix_close', 'symbol_id',
+        'sector_index_value', 'sector_return_vs_previous', 'sector_market_cap',
+        'subsector_index_value', 'subsector_return_vs_previous', 'subsector_market_cap',
+        'subsector_influence_weight'
+    ]
+
+    df = df.dropna(subset=features + ['future_return_1d'])
+    X = df[features]
+    y = df['future_return_1d']
+    return X, y, symbol_map
 
 def train_model(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, shuffle=False)
+    model = xgb.XGBRegressor(
+        n_estimators=500,
+        learning_rate=0.05,
+        max_depth=6,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        tree_method='hist',
+        random_state=42
+    )
+    model.fit(X, y)
+    return model
 
-    # Remove NaNs from target values in the training and test sets
-    y_train = y_train.dropna()
-    y_test = y_test.dropna()
+def save_model(model, sector_name):
+    model_dir = "models"
+    os.makedirs(model_dir, exist_ok=True)
+    file_path = os.path.join(model_dir, f"xgb_model_{sector_name.replace(' ', '_').lower()}.joblib")
+    joblib.dump(model, file_path)
+    print(f"✅ Model saved: {file_path}")
 
-    # Remove NaNs in feature sets (X_train, X_test)
-    X_train = X_train.loc[y_train.index]
-    X_test = X_test.loc[y_test.index]
+def clear_resources():
+    gc.collect()
+    xgb.Booster().free()
+    print("🧹 Cleared memory and XGBoost cache.")
 
-    model = xgb.XGBRegressor(objective="reg:squarederror", n_estimators=100, enable_categorical=True)
-
-    model.fit(X_train, y_train)
-
-    preds = model.predict(X_test)
-
-    min_len = min(len(y_test), len(preds))
-    y_test = y_test.iloc[:min_len]
-    preds = preds[:min_len]
-
-    mask = ~np.isnan(y_test) & ~np.isnan(preds)
-    y_test = y_test[mask]
-    preds = preds[mask]
-
-    return model, y_test, preds
-
-
-def save_results(sector, model, feature_names):
-    save_path = SAVE_DIR / f"{sector}_model.joblib"
-    
-    # Combine model and metadata into a single dictionary
-    data_to_save = {
-        "sector": sector,
-        "model": model,
-        "features": feature_names
-    }
-
-    # Save the entire bundle using joblib
-    joblib.dump(data_to_save, save_path)
-    print(f"📦 Model and metadata saved to {save_path}")
-
-
-
-
-
-def main():
-    conn = get_db_connection()
-    trained_sectors = []
-
-    for sector in SECTORS:
-        print(f"\n--- Training model for sector: {sector} ---")
-        gc.collect()  # Clear memory cache between training
-        print("Clearing cache")
-        df = fetch_sector_data(conn, sector)
-        if df.empty:
-            print(f"⚠️ No data found for {sector}, skipping.")
-            continue
-
-        X, y = preprocess(df)
-        if X.empty or y.isnull().all():
-            print(f"⚠️ Not enough data after preprocessing for {sector}, skipping.")
-            continue
-
-        model, y_test, preds = train_model(X, y)
-        print(f"✅ Finished training {sector}")
-
-        save_results(sector, model, X.columns.tolist())
-        trained_sectors.append(sector)
-
-    conn.close()
-    print(f"\n✅ Trained sectors: {trained_sectors}")
-    print("\n🎉 All sector models trained and saved.")
+def run_pipeline(sector):
+    print(f"\n\U0001f4ca Starting training for sector: {sector}")
+    df, index_df = fetch_sector_data(sector)
+    X, y, _ = preprocess(df, index_df)
+    model = train_model(X, y)
+    save_model(model, sector)
+    clear_resources()
 
 if __name__ == "__main__":
-    main()
+    for sector in [
+        "Information Technology",
+        "Financials",
+        "Healthcare",
+        "Consumer Discretionary",
+        "Industrials",
+        "Consumer Staples",
+        "Communications",
+        "Utilities"
+        ]:
+        run_pipeline(sector)
