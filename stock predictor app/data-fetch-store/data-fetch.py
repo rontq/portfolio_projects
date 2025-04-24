@@ -27,18 +27,18 @@ SECTOR_STOCKS = {
     "Information Technology": {
         "Semiconductors": [
             "NVDA", "AMD", "TSM", "QCOM", "TXN", "AVGO", "MU", "ADI", "KLAC", "MRVL",
-            "NXPI", "LSCC", "ON", "ASML", "ACLS"
+            "NXPI", "LSCC", "ON", "ASML", "ACLS", "FSLR", "SWKS"
         ],
         "System Software": [
             "MSFT", "NOW", "ORCL", "PANW", "FTNT", "ADBE", "CRM", "SNOW", "WDAY", "DDOG",
-            "ZS", "OKTA", "CRWD", "S", "TENB"
+            "ZS", "OKTA", "CRWD", "S", "TENB", "ADSK"
         ],
         "IT Services & Consulting": [
             "ACN", "IBM", "CDW", "EPAM", "CTSH", "INFY", "DXC", "GLOB", "GEN", "NTCT",
-            "SAP", "HDB"
+            "SAP", "HDB", "PLTR", "CDNS", 
         ],
         "Hardware & Peripherals": [
-            "AAPL", "HPQ", "DELL", "LOGI", "ANET", "ZBRA", "HPE", "NTAP", "STX", "WDC"
+            "AAPL", "HPQ", "DELL", "LOGI", "ANET", "ZBRA", "HPE", "NTAP", "STX", "WDC", ""
         ]
     },
 
@@ -64,7 +64,7 @@ SECTOR_STOCKS = {
             "PFE", "MRK", "LLY", "BMY", "ABBV", "AMGN", "GILD", "VRTX", "ZTS", "REGN"
         ],
         "Healthcare Equipment": [
-            "MDT", "SYK", "BSX", "ISRG", "ZBH", "EW", "STE", "BAX", "TFX",
+            "MDT", "SYK", "BSX", "ISRG", "ZBH", "EW", "STE", "BAX", "TFX", "PKI",
             "DXCM", "INSP", "NVCR"
         ],
         "Healthcare Services": [
@@ -169,10 +169,10 @@ SECTOR_STOCKS = {
             "MLM", "VMC", "EXP"
         ],
         "Metals & Mining": [
-            "NEM", "FCX", "X", "AA", "CLF", "ARCH", "HL", "SCCO", "VALE"
+            "NEM", "FCX", "X", "AA", "CLF", "HL", "SCCO", "VALE"
         ],
         "Paper & Packaging": [
-            "IP", "PKG",
+            "IP", "PKG"
         ]
     },
 
@@ -200,6 +200,10 @@ SUBSECTOR_IDS = {
     for idx, subsector in enumerate(SECTOR_STOCKS[sector].keys(), 1)
 }
 
+# Symbol ID mapping
+ALL_SYMBOLS = sorted({symbol for sector in SECTOR_STOCKS.values() for subsector in sector.values() for symbol in subsector})
+SYMBOL_IDS = {symbol: idx for idx, symbol in enumerate(ALL_SYMBOLS, 1)}
+
 def test_database_connection():
     try:
         conn = psycopg2.connect(**DB_PARAMS)
@@ -214,7 +218,7 @@ def create_table():
     try:
         conn = psycopg2.connect(**DB_PARAMS)
         cur = conn.cursor()
-        with open("db.schema.sql", "r") as f:
+        with open("schema/company.schema.sql", "r") as f:
             cur.execute(f.read())
         conn.commit()
         cur.close()
@@ -303,6 +307,7 @@ def insert_data(symbol, sector, subsector, df, market_data, vix_df):
 
     sector_id = SECTOR_IDS.get(sector, None)
     subsector_id = SUBSECTOR_IDS.get(subsector, None)
+    symbol_id = SYMBOL_IDS.get(symbol)
 
     df = df.merge(vix_df, on="date", how="left")
 
@@ -313,7 +318,7 @@ def insert_data(symbol, sector, subsector, df, market_data, vix_df):
             cur.execute(
                 sql.SQL("""
                     INSERT INTO stock_market_table (
-                        symbol, sector, subsector, date, day_of_week, week_of_year, is_adr,
+                        symbol, sector, subsector, date, day_of_week, week_of_year, is_adr, symbol_id,
                         open, high, low, close, volume, adj_close,
                         sma_5, sma_20, sma_50, sma_125, sma_200, sma_200_weekly,
                         ema_5, ema_20, ema_50, ema_125, ema_200,
@@ -323,10 +328,9 @@ def insert_data(symbol, sector, subsector, df, market_data, vix_df):
                         volatility_5d, volatility_10d, volatility_20d, volatility_40d,
                         market_cap, market_cap_proxy,
                         sector_id, subsector_id,
-                        sector_weight, subsector_weight, vix_close,
-                        future_return_1d, future_movement_class
+                        sector_weight, subsector_weight, vix_close
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s,
@@ -336,13 +340,12 @@ def insert_data(symbol, sector, subsector, df, market_data, vix_df):
                         %s, %s, %s, %s,
                         %s, %s,
                         %s, %s,
-                        %s, %s, %s,
-                        %s, %s
+                        %s, %s, %s
                     )
                     ON CONFLICT (symbol, date) DO NOTHING
                 """),
                 (
-                    symbol, sector, subsector, row["date"], row["day_of_week"], row["week_of_year"], market_data.get("is_adr", False),
+                    symbol, sector, subsector, row["date"], row["day_of_week"], row["week_of_year"], market_data.get("is_adr", False), symbol_id,
                     row["open"], row["high"], row["low"], row["close"], row["volume"], row["adj_close"],
                     row.get("sma_5"), row.get("sma_20"), row.get("sma_50"), row.get("sma_125"), row.get("sma_200"), row.get("sma_200_weekly"),
                     row.get("ema_5"), row.get("ema_20"), row.get("ema_50"), row.get("ema_125"), row.get("ema_200"),
@@ -352,8 +355,7 @@ def insert_data(symbol, sector, subsector, df, market_data, vix_df):
                     row.get("volatility_5d"), row.get("volatility_10d"), row.get("volatility_20d"), row.get("volatility_40d"),
                     market_data["market_cap"], row.get("market_cap_proxy"),
                     sector_id, subsector_id,
-                    row.get("sector_weight"), row.get("subsector_weight"), row.get("vix_close"),
-                    row.get("future_return_1d"), row.get("future_movement_class")
+                    row.get("sector_weight"), row.get("subsector_weight"), row.get("vix_close")
                 )
             )
         except Exception as e:

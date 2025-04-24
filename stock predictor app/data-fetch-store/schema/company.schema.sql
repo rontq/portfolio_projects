@@ -3,8 +3,11 @@ DROP TABLE IF EXISTS stock_market_table;
 CREATE TABLE stock_market_table (
     id SERIAL PRIMARY KEY,
     symbol TEXT NOT NULL,
+    symbol_id INT NOT NULL,
     sector TEXT,
+    sector_id INT,
     subsector TEXT,
+    subsector_id INT,
     date DATE NOT NULL,
     day_of_week INT,
     week_of_year INT,
@@ -48,15 +51,9 @@ CREATE TABLE stock_market_table (
     volatility_40d FLOAT,
     market_cap BIGINT,
     market_cap_proxy FLOAT,
-    sector_id INT,
-    subsector_id INT,
     sector_weight FLOAT,
     subsector_weight FLOAT,
     vix_close FLOAT,
-
-    -- Labels for ML
-    future_return_1d FLOAT,
-    future_movement_class INT,
 
     UNIQUE(symbol, date)
 );
