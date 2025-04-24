@@ -10,6 +10,7 @@ CREATE TABLE sector_index_table (
 
     -- Temporal
     date DATE NOT NULL,
+        
 
     -- Core market metrics
     index_value FLOAT,                     -- Synthetic index value (e.g. 1000 base)
