@@ -28,9 +28,10 @@ Each type of data will be trained with a model specifc to that scope.
 
 
 [Raw Data] -> [Company-Level Preprocessing] -> [Train Company Models]
+              [Sector/Subsector Indices] -> [Train subsector/sector models]
                                      |
                                      v
-                       [Predict Company Close Prices]
+                       [Predict Target Close Prices]
                                      |
                                      v
       [Aggregate (market cap-weighted) predictions per sector]

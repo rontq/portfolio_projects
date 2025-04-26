@@ -1,26 +1,14 @@
-import os
 import time
 import yfinance as yf
 import pandas as pd
 import psycopg2
 from psycopg2 import OperationalError, sql
-from dotenv import load_dotenv
+from db_params import DB_CONFIG, test_database_connection, create_table
 
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 from ta.volume import OnBalanceVolumeIndicator
 from ta.volatility import BollingerBands
-
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
-
-# Database connection parameters
-DB_PARAMS = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
-}
 
 # Define sectors and respective tickers. Modeled after S&P500
 SECTOR_STOCKS = {
@@ -204,29 +192,6 @@ SUBSECTOR_IDS = {
 ALL_SYMBOLS = sorted({symbol for sector in SECTOR_STOCKS.values() for subsector in sector.values() for symbol in subsector})
 SYMBOL_IDS = {symbol: idx for idx, symbol in enumerate(ALL_SYMBOLS, 1)}
 
-def test_database_connection():
-    try:
-        conn = psycopg2.connect(**DB_PARAMS)
-        conn.close()
-        print("Successfully connected to PostgreSQL database.")
-        return True
-    except OperationalError as e:
-        print("Could not connect to the database:", e)
-        return False
-
-def create_table():
-    try:
-        conn = psycopg2.connect(**DB_PARAMS)
-        cur = conn.cursor()
-        with open("schema/company.schema.sql", "r") as f:
-            cur.execute(f.read())
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("Table created or already exists.")
-    except Exception as e:
-        print("Error creating table:", e)
-
 def fetch_vix_data(start_date="2010-01-01"):
     try:
         vix = yf.Ticker("^VIX")
@@ -302,7 +267,7 @@ def fetch_stock_data(symbol, start_date="2010-01-01", retries=3, sleep_sec=2):
         return None, None
 
 def insert_data(symbol, sector, subsector, df, market_data, vix_df):
-    conn = psycopg2.connect(**DB_PARAMS)
+    conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
     sector_id = SECTOR_IDS.get(sector, None)

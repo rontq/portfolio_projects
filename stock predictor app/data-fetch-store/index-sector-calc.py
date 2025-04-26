@@ -1,17 +1,6 @@
 import psycopg2
-import os
-from dotenv import load_dotenv
 from collections import defaultdict
-
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
-
-DB_CONFIG = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
-}
+from db_params import DB_CONFIG, test_database_connection
 
 SECTORS = [
     "Information Technology",
@@ -151,4 +140,5 @@ def calculate_sector_indexes():
 
 
 if __name__ == "__main__":
-    calculate_sector_indexes()
+    if test_database_connection():
+        calculate_sector_indexes()

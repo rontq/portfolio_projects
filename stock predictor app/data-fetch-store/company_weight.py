@@ -2,16 +2,7 @@ import os
 import psycopg2
 import pandas as pd
 from dotenv import load_dotenv
-
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
-
-DB_CONFIG = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
-}
+from db_params import DB_CONFIG, test_database_connection
 
 def calculate_and_update_weights():
     conn = psycopg2.connect(**DB_CONFIG)
@@ -66,4 +57,5 @@ def calculate_and_update_weights():
     print(f"📈 Sector and subsector weights and company influence updated for {updates} rows.")
 
 if __name__ == "__main__":
-    calculate_and_update_weights()
+    if test_database_connection():
+        calculate_and_update_weights()
