@@ -4,181 +4,12 @@ import pandas as pd
 import psycopg2
 from psycopg2 import OperationalError, sql
 from db_params import DB_CONFIG, test_database_connection, create_table
+from stock_list import SECTOR_STOCKS
 
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 from ta.volume import OnBalanceVolumeIndicator
 from ta.volatility import BollingerBands
-
-# Define sectors and respective tickers. Modeled after S&P500
-SECTOR_STOCKS = {
-    "Information Technology": {
-        "Semiconductors": [
-            "NVDA", "AMD", "TSM", "QCOM", "TXN", "AVGO", "MU", "ADI", "KLAC", "MRVL",
-            "NXPI", "LSCC", "ON", "ASML", "ACLS", "FSLR", "SWKS"
-        ],
-        "System Software": [
-            "MSFT", "NOW", "ORCL", "PANW", "FTNT", "ADBE", "CRM", "SNOW", "WDAY", "DDOG",
-            "ZS", "OKTA", "CRWD", "S", "TENB", "ADSK"
-        ],
-        "IT Services & Consulting": [
-            "ACN", "IBM", "CDW", "EPAM", "CTSH", "INFY", "DXC", "GLOB", "GEN", "NTCT",
-            "SAP", "HDB", "PLTR", "CDNS", 
-        ],
-        "Hardware & Peripherals": [
-            "AAPL", "HPQ", "DELL", "LOGI", "ANET", "ZBRA", "HPE", "NTAP", "STX", "WDC", ""
-        ]
-    },
-
-    "Financials": {
-        "Banks": [
-            "JPM", "BAC", "WFC", "C", "USB", "PNC", "TFC", "FITB", "KEY", "RF",
-            "TD", "RY", "BNS"
-        ],
-        "Investment Management": [
-            "GS", "MS", "BLK", "SCHW", "AMP", "TROW", "IVZ", "BX", "KKR", "APO"
-        ],
-        "Insurance": [
-            "AIG", "CB", "MET", "PRU", "TRV", "ALL", "PGR", "HIG", "LNC", "CINF"
-        ],
-        "Exchanges & Financial Services": [
-            "CME", "ICE", "NDAQ", "MKTX", "COIN", "INTU", "FIS", "GPN", "PYPL", "DFS",
-            "SOFI", "HOOD"
-        ]
-    },
-
-    "Healthcare": {
-        "Pharmaceuticals": [
-            "PFE", "MRK", "LLY", "BMY", "ABBV", "AMGN", "GILD", "VRTX", "ZTS", "REGN"
-        ],
-        "Healthcare Equipment": [
-            "MDT", "SYK", "BSX", "ISRG", "ZBH", "EW", "STE", "BAX", "TFX", "PKI",
-            "DXCM", "INSP", "NVCR"
-        ],
-        "Healthcare Services": [
-            "UNH", "CI", "HUM", "CNC", "MCK", "CAH", "HCA", "ELV", "MOH"
-        ],
-        "Biotech & Research": [
-            "BIIB", "ILMN", "INCY", "NVAX", "EXEL", "CRSP", "BLUE", "ALNY", "BNTX", "SAGE"
-        ]
-    },
-
-    "Consumer Discretionary": {
-        "Retail": [
-            "AMZN", "HD", "LOW", "TGT", "BBY", "ROST", "TJX", "DG", "FIVE", "WSM",
-            "ETSY", "CHWY", "FVRR", "SHOP"
-        ],
-        "Automotive": [
-            "TSLA", "F", "GM", "HOG", "LCID", "RIVN", "NIO", "XPEV", "STLA", "TM"
-        ],
-        "Restaurants": [
-            "MCD", "SBUX", "YUM", "CMG", "DPZ", "QSR", "WEN", "SHAK", "DNUT", "CAKE"
-        ],
-        "Travel & Leisure": [
-            "BKNG", "MAR", "RCL", "LVS", "CCL", "H", "NCLH", "EXPE", "HLT", "TRIP"
-        ]
-    },
-
-    "Industrials": {
-        "Aerospace & Defense": [
-            "BA", "LMT", "GD", "NOC", "RTX", "HII", "SPR", "TDG", "COL", "HEI",
-            "GE", "SPCE"
-        ],
-        "Machinery": [
-            "CAT", "DE", "PCAR", "SAND", "HON", "ITT", "CMI", "AOS", "MAN", "MTW"
-        ],
-        "Transportation": [
-            "UPS", "FDX", "CSX", "NSC", "WAB", "UNP", "LSTR", "ODFL", "JBHT", "UBER"
-        ],
-        "Construction & Engineering": [
-            "FLR", "KBR", "HIT", "TTEK", "STRL", "MTZ", "MTRX", "ACM", "PWR"
-        ]
-    },
-
-    "Consumer Staples": {
-        "Food & Beverage": [
-            "KO", "PEP", "MDLZ", "K", "GIS", "CPB", "KHC", "HSY", "TSN", "CAG"
-        ],
-        "Retail & Distribution": [
-            "WMT", "COST", "KR", "TGT", "ACI", "SFM", "BJ", "WBA", "CVS", "CASY"
-        ],
-        "Household Products": [
-            "PG", "CL", "KMB", "CHD", "ECL", "NWL", "ENR", "SPB", "UL", "REYN"
-        ],
-        "Tobacco & Alcohol": [
-            "MO", "PM", "STZ", "BUD", "TAP", "DEO", "SAM", "HEINY", "CCEP"
-        ]
-    },
-
-    "Communications": {
-        "Internet Services": [
-            "GOOGL", "META", "NFLX", "ZM", "TWLO", "DDOG", "DOCN", "ABNB", "DUOL", "GOOG"
-        ],
-        "Media & Entertainment": [
-            "DIS", "PARA", "FOXA", "WBD", "ROKU", "LYV", "IMAX", "SIRI", "SPOT", "CURI"
-        ],
-        "Telecom": [
-            "VZ", "T", "TMUS", "CHTR", "LUMN", "USM", "SHEN", "ATEX", "WOW"
-        ],
-        "Gaming & Interactive Media": [
-            "EA", "TTWO", "RBLX", "HUYA", "BILI", "PLTK", "U", "SKLZ", "NTES"
-        ]
-    },
-
-    "Utilities": {
-        "Electric Utilities": [
-            "NEE", "DUK", "SO", "D", "EXC", "AEP", "ED", "XEL", "FE", "EIX"
-        ],
-        "Gas Utilities": [
-            "SRE", "NI", "UGI", "OKE", "ATO", "SWX", "NWN", "SR", "WMB", "CNP"
-        ],
-        "Renewables": [
-            "RUN", "ENPH", "SEDG", "FSLR", "CWEN", "ORA", "TPIC"
-        ],
-        "Water Utilities": [
-            "AWK", "WTRG", "SJW", "YORW", "MSEX", "AWR", "CWCO", "ARTNA", "SBS"
-        ]
-    },
-
-    "Real Estate": {
-        "REITs": [
-            "O", "SPG", "PLD", "VTR", "AVB", "EXR", "DLR", "EQR", "MAA", "ARE"
-        ],
-        "Real Estate Services": [
-            "CBRE", "JLL", "Z", "RDFN", "COMP"
-        ]
-    },
-
-    "Materials": {
-        "Chemicals": [
-            "LIN", "DD", "DOW", "CE", "ALB", "MOS", "FMC"
-        ],
-        "Construction Materials": [
-            "MLM", "VMC", "EXP"
-        ],
-        "Metals & Mining": [
-            "NEM", "FCX", "X", "AA", "CLF", "HL", "SCCO", "VALE"
-        ],
-        "Paper & Packaging": [
-            "IP", "PKG"
-        ]
-    },
-
-    "Energy": {
-        "Oil & Gas Producers": [
-            "XOM", "CVX", "COP", "EOG", "OXY", "DVN", "FANG", "APA"
-        ],
-        "Oil & Gas Equipment & Services": [
-            "SLB", "HAL", "BKR", "NOV", "CHX"
-        ],
-        "Midstream & Pipelines": [
-            "KMI", "WMB", "ENB", "ET", "OKE"
-        ],
-        "Renewable & Integrated Energy": [
-            "NEE", "DUK", "D", "BEP", "CWEN"
-        ]
-    }
-}
 
 # For masking purposes
 SECTOR_IDS = {name: idx for idx, name in enumerate(SECTOR_STOCKS.keys(), 1)}
@@ -333,7 +164,7 @@ def insert_data(symbol, sector, subsector, df, market_data, vix_df):
     cur.close()
     conn.close()
 
-if __name__ == "__main__":
+def main():
     if test_database_connection():
         create_table()
         vix_df = fetch_vix_data()
@@ -349,3 +180,7 @@ if __name__ == "__main__":
                         print(f"\u26a0\ufe0f Failed to process {symbol}: {e}")
     else:
         print("\u274c Failed DB Connection.")
+
+
+if __name__ == "__main__":
+    main()

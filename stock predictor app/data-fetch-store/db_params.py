@@ -1,7 +1,6 @@
 import psycopg2
 from psycopg2 import OperationalError
 import os
-from collections import defaultdict
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))

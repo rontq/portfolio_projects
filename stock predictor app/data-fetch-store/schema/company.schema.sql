@@ -54,6 +54,7 @@ CREATE TABLE stock_market_table (
     sector_weight FLOAT,
     subsector_weight FLOAT,
     vix_close FLOAT,
+    future_return_1d FLOAT,
 
     UNIQUE(symbol, date)
 );

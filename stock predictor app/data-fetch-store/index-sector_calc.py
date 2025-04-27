@@ -1,17 +1,7 @@
 import psycopg2
 from collections import defaultdict
 from db_params import DB_CONFIG, test_database_connection
-
-SECTORS = [
-    "Information Technology",
-    "Financials",
-    "Healthcare",
-    "Consumer Discretionary",
-    "Industrials",
-    "Consumer Staples",
-    "Communications",
-    "Utilities"
-]
+from stock_list import SECTORS
 
 def calculate_sector_indexes():
     conn = psycopg2.connect(**DB_CONFIG)
@@ -140,5 +130,5 @@ def calculate_sector_indexes():
 
 
 if __name__ == "__main__":
-    if test_database_connection():
+    if test_database_connection:
         calculate_sector_indexes()
