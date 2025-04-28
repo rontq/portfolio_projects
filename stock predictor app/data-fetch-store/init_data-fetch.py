@@ -15,10 +15,8 @@ from ta.volatility import BollingerBands
 
 # --- Mapping Section ---
 
-# Assign sector IDs (1,2,3...) from SECTOR_STOCKS
 SECTOR_IDS = {sector: idx for idx, sector in enumerate(SECTOR_STOCKS.keys(), 1)}
 
-# Assign globally unique subsector IDs (1,2,3,...) across all sectors
 all_subsectors = []
 for sector, subsectors in SECTOR_STOCKS.items():
     all_subsectors.extend(subsectors.keys())

@@ -36,6 +36,7 @@ CREATE TABLE sector_index_table (
     sma_200 FLOAT,
     sma_200_weekly FLOAT,
     ema_5 FLOAT,
+    ema_10 FLOAT,
     ema_20 FLOAT,
     ema_50 FLOAT,
     ema_125 FLOAT,

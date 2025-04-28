@@ -2,48 +2,27 @@ import time
 import yfinance as yf
 import pandas as pd
 import psycopg2
-from psycopg2 import OperationalError
-from psycopg2.extras import execute_values
-from db_params import DB_CONFIG, test_database_connection, create_table, api_key
-from stock_list import SECTOR_STOCKS, MACRO_CODES
-from fredapi import Fred
 
+from db_params import DB_CONFIG, test_database_connection, api_key
+from stock_list import SECTOR_STOCKS, MACRO_CODES
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 from ta.volume import OnBalanceVolumeIndicator
 from ta.volatility import BollingerBands
 
-# --- Mapping Section ---
-# Assign sector IDs (1,2,3...) from SECTOR_STOCKS
-SECTOR_IDS = {sector: idx for idx, sector in enumerate(SECTOR_STOCKS.keys(), 1)}
+from datetime import datetime, timedelta
 
-# Assign globally unique subsector IDs (1,2,3,...) across all sectors
-all_subsectors = []
-for sector, subsectors in SECTOR_STOCKS.items():
-    all_subsectors.extend(subsectors.keys())
-SUBSECTOR_IDS = {subsector: idx for idx, subsector in enumerate(sorted(set(all_subsectors)), 1)}
-
-# Assign symbol IDs (1,2,3...) sorted alphabetically
+# Symbol mappings
+SECTOR_IDS = {name: idx for idx, name in enumerate(SECTOR_STOCKS.keys(), 1)}
+SUBSECTOR_IDS = {
+    subsector: idx
+    for sector in SECTOR_STOCKS
+    for idx, subsector in enumerate(SECTOR_STOCKS[sector].keys(), 1)
+}
 ALL_SYMBOLS = sorted({symbol for sector in SECTOR_STOCKS.values() for subsector in sector.values() for symbol in subsector})
 SYMBOL_IDS = {symbol: idx for idx, symbol in enumerate(ALL_SYMBOLS, 1)}
 
-# --- Helper Functions ---
-
-def get_latest_date(symbol):
-    """Fetch the latest date from the database for a given symbol."""
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT MAX(date) FROM stock_market_table WHERE symbol = %s
-    """, (symbol,))
-    latest_date = cur.fetchone()[0]
-    cur.close()
-    conn.close()
-    return latest_date
-
-# --- Data Fetching Functions ---
-
-def fetch_vix_data(start_date="2004-01-01"):
+def fetch_vix_data(start_date):
     try:
         vix = yf.Ticker("^VIX")
         df = vix.history(start=start_date).reset_index()
@@ -54,19 +33,21 @@ def fetch_vix_data(start_date="2004-01-01"):
         print("Failed to fetch VIX data:", e)
         return pd.DataFrame()
 
-def fetch_macro_data(start_date="2004-01-01", end_date="2025-04-04"):
-    fred = Fred(api_key=api_key)
+def fetch_macro_data(start_date, end_date=None):
+    fred = api_key
+    if end_date is None:
+        end_date = pd.Timestamp.today().strftime("%Y-%m-%d")
+
     all_macro = []
-    
-    for macro_name, fred_code in MACRO_CODES.items():
+    for field_name, fred_code in MACRO_CODES.items():
         try:
-            print(f"📈 Fetching {macro_name} ({fred_code})...")
+            print(f"📈 Fetching {fred_code} ({field_name})...")
             series = fred.get_series(fred_code, observation_start=start_date, observation_end=end_date)
             df = series.reset_index()
-            df.columns = ["date", macro_name]
+            df.columns = ["date", field_name]
             all_macro.append(df)
         except Exception as e:
-            print(f"⚠️ Error fetching {macro_name}: {e}")
+            print(f"⚠️ Error fetching {fred_code}: {e}")
 
     if all_macro:
         macro_df = all_macro[0]
@@ -74,25 +55,26 @@ def fetch_macro_data(start_date="2004-01-01", end_date="2025-04-04"):
             macro_df = pd.merge(macro_df, df, on="date", how="outer")
 
         macro_df["date"] = pd.to_datetime(macro_df["date"]).dt.date
-        
-        columns_to_forward_fill = [col for col in macro_df.columns if col != "date" and col != "breakeven_inflation_rate"]
-        
-        macro_df.sort_values("date", inplace=True)
-        macro_df[columns_to_forward_fill] = macro_df[columns_to_forward_fill].ffill()
-
+        macro_df = macro_df.sort_values("date").ffill()
         return macro_df
     else:
+        print("⚠️ No macroeconomic data fetched.")
         return pd.DataFrame()
 
-def fetch_stock_data(symbol, start_date=None, retries=3, sleep_sec=2):
-    # If start_date is None, get the latest date from the database
-    if start_date is None:
-        latest_date = get_latest_date(symbol)
-        if latest_date is not None:
-            start_date = latest_date + pd.Timedelta(days=1)  # Start from the day after the latest date in the DB
-        else:
-            start_date = "2004-01-01"  # Fallback if no data is found in DB
+def get_latest_global_date(conn):
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT MAX(date) FROM stock_market_table;")
+            result = cur.fetchone()
+            if result and result[0]:
+                return result[0]
+            else:
+                return None
+    except Exception as e:
+        print(f"❌ Error querying latest global date: {e}")
+        return None
 
+def fetch_stock_data(symbol, start_date, retries=3, sleep_sec=2):
     for attempt in range(retries):
         try:
             ticker = yf.Ticker(symbol)
@@ -155,68 +137,57 @@ def fetch_stock_data(symbol, start_date=None, retries=3, sleep_sec=2):
         print(f"⚠️ Indicator calc failed for {symbol}: {e}")
         return None, None
 
-# --- Data Insert Function ---
-
 def insert_data(symbol, sector, subsector, df, market_data):
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
-
-    symbol_id = SYMBOL_IDS.get(symbol)
-    sector_id = SECTOR_IDS.get(sector)
-    subsector_id = SUBSECTOR_IDS.get(subsector)
-
-    # Validate IDs
-    if symbol_id is None:
-        raise ValueError(f"❌ Symbol {symbol} not found in SYMBOL_IDS mapping.")
-    if sector_id is None:
-        raise ValueError(f"❌ Sector {sector} not found in SECTOR_IDS mapping.")
-    if subsector_id is None:
-        raise ValueError(f"❌ Subsector {subsector} not found in SUBSECTOR_IDS mapping.")
-
-    insert_rows = []
-
-    for _, row in df.iterrows():
-        if pd.isna(row["date"]):
-            continue
-        insert_rows.append((...)) 
-
-    if insert_rows:
-        try:
-            execute_values(cur, """
-                INSERT INTO stock_market_table (
-                    ...
-                ) VALUES %s
-                ON CONFLICT (symbol, date) DO NOTHING
-            """, insert_rows)
-            conn.commit()
-        except Exception as e:
-            print(f"❌ Failed batch insert {symbol}: {e}")
-            conn.rollback()
-
-    cur.close()
-    conn.close()
+    # --- your real insert logic will be filled here ---
+    pass
 
 def main():
     if test_database_connection():
-        create_table()
-        macro_df = fetch_macro_data()
-        vix_df = fetch_vix_data()
+        conn = psycopg2.connect(**DB_CONFIG)
+
+        latest_date = get_latest_global_date(conn)
+        today = datetime.today().date()
+
+        if latest_date is None:
+            print("❌ No data found in database! This updater script assumes prior full loading.")
+            return
+
+        if latest_date >= today:
+            print(f"⚠️ Latest date in database ({latest_date}) is up to or after today ({today}). No automatic updates possible.")
+            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD: ")
+            try:
+                start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
+            except ValueError:
+                print("❌ Invalid date format. Please use YYYY-MM-DD format.")
+                return
+        else:
+            start_date = (latest_date + timedelta(days=1)).strftime("%Y-%m-%d")
+
+        print(f"⏩ Global update starting from {start_date}")
+
+        macro_df = fetch_macro_data(start_date=start_date)
+        vix_df = fetch_vix_data(start_date=start_date)
 
         for sector, subsectors in SECTOR_STOCKS.items():
             for subsector, symbols in subsectors.items():
                 for symbol in symbols:
-                    print(f"📈 Fetching {symbol} ({sector} - {subsector})...")
+                    print(f"📈 Updating {symbol} ({sector} - {subsector})...")
                     try:
-                        df, market_data = fetch_stock_data(symbol)
+                        df, market_data = fetch_stock_data(symbol, start_date=start_date)
+
                         if df is not None and not df.empty:
                             df = df.merge(vix_df, on="date", how="left")
                             if not macro_df.empty:
                                 df = df.merge(macro_df, on="date", how="left")
                             insert_data(symbol, sector, subsector, df, market_data)
+                        else:
+                            print(f"⚠️ No new data for {symbol}")
                     except Exception as e:
-                        print(f"⚠️ Failed processing {symbol}: {e}")
+                        print(f"⚠️ Failed to update {symbol}: {e}")
+
+        conn.close()
     else:
-        print("❌ Database connection failed.")
+        print("❌ Failed DB Connection.")
 
 if __name__ == "__main__":
     main()

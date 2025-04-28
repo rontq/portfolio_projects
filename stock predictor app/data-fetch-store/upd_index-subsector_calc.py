@@ -3,8 +3,26 @@ from collections import defaultdict
 from psycopg2.extras import execute_values
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SUBSECTOR_TO_SECTOR
+from datetime import datetime, timedelta
 
-def process_subsector(subsector):
+def get_latest_stock_date():
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT MAX(date) FROM stock_market_table;")
+        result = cur.fetchone()
+        if result and result[0]:
+            return result[0]
+        else:
+            return None
+    except Exception as e:
+        print(f"❌ Error fetching latest stock date: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def process_subsector(subsector, start_date):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
     sector_name = SUBSECTOR_TO_SECTOR[subsector]
@@ -12,13 +30,15 @@ def process_subsector(subsector):
     cur.execute("""
         SELECT symbol, date, close, market_cap_proxy, volume
         FROM stock_market_table
-        WHERE subsector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL
+        WHERE subsector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date >= %s
         ORDER BY date
-    """, (subsector,))
+    """, (subsector, start_date))
     rows = cur.fetchall()
 
     if not rows:
-        print(f"⚠️ No data for {subsector}")
+        print(f"⚠️ No data for {subsector} from {start_date}")
+        cur.close()
+        conn.close()
         return
 
     data_by_date = defaultdict(list)
@@ -46,6 +66,8 @@ def process_subsector(subsector):
 
     if total_baseline_cap == 0:
         print(f"⚠️ Skipping {subsector}: baseline market cap is zero.")
+        cur.close()
+        conn.close()
         return
 
     weights = {symbol: cap / total_baseline_cap for symbol, cap in proxy_cap_baseline.items()}
@@ -87,7 +109,6 @@ def process_subsector(subsector):
         return_vs_prev = round((final_index_value - previous_index) / previous_index * 100, 2) if previous_index else None
         previous_index = final_index_value
 
-        # Fetch precomputed sector market cap
         cur.execute("""
             SELECT market_cap
             FROM sector_index_table
@@ -96,7 +117,6 @@ def process_subsector(subsector):
         sector_cap_result = cur.fetchone()
         current_sector_cap = sector_cap_result[0] if sector_cap_result else 0
 
-        # Calculate current subsector synthetic cap
         cur.execute("""
             SELECT SUM(0.3 * market_cap + 0.7 * market_cap_proxy)
             FROM stock_market_table
@@ -142,9 +162,29 @@ def process_subsector(subsector):
     conn.close()
 
 def calculate_subsector_indexes():
+    latest_date = get_latest_stock_date()
+    today = datetime.today().date()
+
+    if latest_date is None:
+        print("❌ No existing stock data found! Cannot proceed with updating.")
+        return
+
+    if latest_date >= today:
+        print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No new data to calculate.")
+        start_date_input = input("Please manually enter a start date in format YYYY-MM-DD: ")
+        try:
+            start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            print("❌ Invalid date format. Please use YYYY-MM-DD format.")
+            return
+    else:
+        start_date = latest_date + timedelta(days=1)
+
+    print(f"⏩ Starting subsector index calculation from {start_date}")
+
     subsectors = list(SUBSECTOR_TO_SECTOR.keys())
     for subsector in subsectors:
-        process_subsector(subsector)
+        process_subsector(subsector, start_date)
 
 if __name__ == "__main__":
     if test_database_connection():

@@ -2,25 +2,42 @@ import psycopg2
 from collections import defaultdict
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SECTORS
+from datetime import datetime, timedelta
 
-def calculate_sector_indexes():
+def get_latest_stock_date():
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT MAX(date) FROM stock_market_table;")
+        result = cur.fetchone()
+        if result and result[0]:
+            return result[0]
+        else:
+            return None
+    except Exception as e:
+        print(f"❌ Error fetching latest stock date: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def calculate_sector_indexes(start_date):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
     for sector in SECTORS:
-        print(f"\U0001f4ca Processing sector: {sector}")
+        print(f"📈 Processing sector: {sector}")
 
-        # Step 1: Load all daily stock data with market_cap_proxy
         cur.execute(""" 
             SELECT symbol, date, close, market_cap_proxy, volume, future_return_1d
             FROM stock_market_table
-            WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL
+            WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date >= %s
             ORDER BY date
-        """, (sector,))
+        """, (sector, start_date))
         rows = cur.fetchall()
 
         if not rows:
-            print(f"⚠️ No data for {sector}")
+            print(f"⚠️ No data for {sector} after {start_date}")
             continue
 
         data_by_date = defaultdict(list)
@@ -34,6 +51,9 @@ def calculate_sector_indexes():
             all_dates.add(date)
 
         sorted_dates = sorted(all_dates)
+        if not sorted_dates:
+            continue
+
         baseline_date = sorted_dates[0]
         baseline_data = data_by_date[baseline_date]
 
@@ -88,7 +108,7 @@ def calculate_sector_indexes():
                 SUM(0.3 * market_cap + 0.7 * market_cap_proxy)
                 FROM stock_market_table
                 WHERE sector = %s AND date = %s
-                """, (sector, date))
+            """, (sector, date))
             cap_result = cur.fetchone()
             current_cap = cap_result[0] if cap_result and cap_result[0] else None
 
@@ -126,9 +146,24 @@ def calculate_sector_indexes():
 
     cur.close()
     conn.close()
-    print("\U0001f3c1 Sector index calculation completed.")
-
+    print("🏁 Sector index calculation completed.")
 
 if __name__ == "__main__":
-    if test_database_connection:
-        calculate_sector_indexes()
+    if test_database_connection():
+        latest_date = get_latest_stock_date()
+        today = datetime.today().date()
+
+        if latest_date is None:
+            print("❌ No existing stock data found! Cannot proceed with updating.")
+        elif latest_date >= today:
+            print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No automatic updates possible.")
+            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD: ")
+            try:
+                start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
+            except ValueError:
+                print("❌ Invalid date format. Please use YYYY-MM-DD format.")
+                exit()
+            calculate_sector_indexes(start_date)
+        else:
+            start_date = latest_date + timedelta(days=1)
+            calculate_sector_indexes(start_date)
