@@ -275,3 +275,18 @@ SUBSECTOR_TO_SECTOR = {
     "Metals & Mining": "Materials",
     "Packaging & Containers": "Materials"
 }
+
+MACRO_CODES = {
+        "cpi_inflation": "CPIAUCSL",
+        "core_cpi_inflation": "CPILFESL",
+        "pce_inflation": "PCE",
+        "core_pce_inflation": "PCEPILFE",
+        "breakeven_inflation_rate": "T10YIE",
+        "realized_inflation": "CPIAUCSL",
+        "us_10y_bond_rate": "GS10",
+        "retail_sales": "RSAFS",
+        "consumer_confidence_index": "UMCSENT",
+        "nfp": "PAYEMS",
+        "unemployment_rate": "UNRATE",
+        "effective_federal_funds_rate": "FEDFUNDS"
+    }

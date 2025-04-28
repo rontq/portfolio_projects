@@ -56,5 +56,19 @@ CREATE TABLE stock_market_table (
     vix_close FLOAT,
     future_return_1d FLOAT,
 
+    --Macro Federal Information.
+    cpi_inflation FLOAT,
+    core_cpi_inflation FLOAT,
+    pce_inflation FLOAT,
+    core_pce_inflation FLOAT,
+    breakeven_inflation_rate FLOAT,
+    realized_inflation FLOAT,
+    us_10y_bond_rate FLOAT,
+    retail_sales FLOAT,
+    consumer_confidence_index FLOAT,
+    nfp FLOAT,
+    unemployment_rate FLOAT,
+    effective_federal_funds_rate FLOAT,
+
     UNIQUE(symbol, date)
 );

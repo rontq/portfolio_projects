@@ -13,8 +13,6 @@ DB_CONFIG = {
     "port": os.getenv("DB_PORT"),
 }
 
-api_key = os.getenv("FRED_API_KEY")
-
 def test_database_connection():
     try:
         conn = psycopg2.connect(**DB_CONFIG)
