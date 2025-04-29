@@ -89,3 +89,60 @@ def fetch_data(level: str, name: str, columns: list, start_date: str, end_date: 
 
     finally:
         conn.close()
+
+def update_database():
+    upd_data_fetch.main()
+    
+def update_sector_index():
+    upd_index_sector_calc.calculate_sector()
+
+def update_subsector_index():
+    upd_index_subsector_calc.calculate_subsector()
+
+def update_subsector_vol_sma():
+    upd_vol_sma_subsector_calc.calculate_vol_sma()
+
+def update_company_weight():
+    upd_company_weight.calculate_company_weight()
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) < 2:
+        print("⚠️ Usage: python entry.py <command> [parameters]")
+        print("Available commands: fetch_data, update_database, update_sector_index, update_subsector_index, update_subsector_vol_sma, update_company_weight")
+        sys.exit(1)
+
+    command = sys.argv[1]
+
+    if command == "fetch_data":
+        if len(sys.argv) < 6:
+            print("⚠️ Usage for fetch_data: python entry.py fetch_data <level> <name> <start_date> <columns_comma_separated> [end_date_optional]")
+            sys.exit(1)
+
+        level = sys.argv[2]
+        name = sys.argv[3]
+        start_date = sys.argv[4]
+        columns = sys.argv[5].split(",")
+        end_date = sys.argv[6] if len(sys.argv) > 6 else None
+
+        df = fetch_data(level, name, columns, start_date, end_date)
+        print(df)
+
+    elif command == "update_database":
+        update_database()
+
+    elif command == "update_sector_index":
+        update_sector_index()
+
+    elif command == "update_subsector_index":
+        update_subsector_index()
+
+    elif command == "update_subsector_vol_sma":
+        update_subsector_vol_sma()
+
+    elif command == "update_company_weight":
+        update_company_weight()
+
+    else:
+        print(f"❌ Unknown command '{command}'")

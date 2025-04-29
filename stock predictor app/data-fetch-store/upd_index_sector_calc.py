@@ -1,111 +1,170 @@
 import psycopg2
+import time
 from collections import defaultdict
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SECTORS
 from datetime import datetime, timedelta
 
+def get_db_connection():
+    return psycopg2.connect(**DB_CONFIG)
+
 def get_latest_stock_date():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_db_connection()
     cur = conn.cursor()
     try:
         cur.execute("SELECT MAX(date) FROM stock_market_table;")
         result = cur.fetchone()
-        if result and result[0]:
-            return result[0]
-        else:
-            return None
-    except Exception as e:
-        print(f"❌ Error fetching latest stock date: {e}")
-        return None
+        return result[0] if result and result[0] else None
+    finally:
+        cur.close()
+        conn.close()
+
+def get_sector_index_at_date(sector, date):
+    """Fetch the sector index value for a specific date."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT index_value
+            FROM sector_index_table
+            WHERE sector = %s AND subsector IS NULL AND date = %s
+            LIMIT 1
+        """, (sector, date))
+        result = cur.fetchone()
+        return result[0] if result else None
+    finally:
+        cur.close()
+        conn.close()
+
+def get_previous_day_closes(sector, previous_date):
+    """Fetch the closes of all symbols for a sector on the previous day."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT symbol, close
+            FROM stock_market_table
+            WHERE sector = %s AND date = %s
+        """, (sector, previous_date))
+        rows = cur.fetchall()
+        
+        closes = {}
+        for symbol, close in rows:
+            if close is not None:
+                closes[symbol] = close
+
+        return closes
+    finally:
+        cur.close()
+        conn.close()
+
+def get_baseline_weights(sector, baseline_date):
+    """Fetch market cap proxies to calculate baseline weights."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT symbol, market_cap_proxy
+            FROM stock_market_table
+            WHERE sector = %s AND date = %s
+        """, (sector, baseline_date))
+        rows = cur.fetchall()
+
+        caps = {}
+        for symbol, cap_proxy in rows:
+            if cap_proxy is not None:
+                caps[symbol] = cap_proxy
+
+        total_cap = sum(caps.values())
+        if total_cap == 0:
+            return {}
+
+        weights = {symbol: cap / total_cap for symbol, cap in caps.items()}
+        return weights
     finally:
         cur.close()
         conn.close()
 
 def calculate_sector_indexes(start_date):
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_db_connection()
     cur = conn.cursor()
 
     for sector in SECTORS:
         print(f"📈 Processing sector: {sector}")
 
+        # Step 1: Load the sector index at start_date
+        baseline_index = get_sector_index_at_date(sector, start_date)
+        if baseline_index is None:
+            print(f"❌ No sector index found for {sector} on {start_date}. Skipping.")
+            continue
+
+        print(f"📌 Starting baseline for {sector} on {start_date}: {baseline_index}")
+        time.sleep(1)  # 1 second pause as per your request
+
+        # Step 2: Load baseline prices and weights from start_date
+        previous_day = start_date
+        previous_closes = get_previous_day_closes(sector, previous_day)
+        weights = get_baseline_weights(sector, previous_day)
+
+        if not previous_closes or not weights:
+            print(f"⚠️ Missing previous day data or weights for {sector} at {previous_day}. Skipping.")
+            continue
+
+        previous_index = baseline_index
+
+        # Step 3: Load all daily stock data after start_date
         cur.execute(""" 
             SELECT symbol, date, close, market_cap_proxy, volume, future_return_1d
             FROM stock_market_table
-            WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date >= %s
+            WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date > %s
             ORDER BY date
         """, (sector, start_date))
         rows = cur.fetchall()
 
         if not rows:
-            print(f"⚠️ No data for {sector} after {start_date}")
+            print(f"⚠️ No new data for {sector} after {start_date}")
             continue
 
         data_by_date = defaultdict(list)
-        prices_by_symbol = defaultdict(dict)
-        proxy_cap_baseline = {}
         all_dates = set()
 
         for symbol, date, close, cap_proxy, volume, future_ret in rows:
             data_by_date[date].append((symbol, close, cap_proxy, volume, future_ret))
-            prices_by_symbol[symbol][date] = close
             all_dates.add(date)
 
         sorted_dates = sorted(all_dates)
-        if not sorted_dates:
-            continue
-
-        baseline_date = sorted_dates[0]
-        baseline_data = data_by_date[baseline_date]
-
-        total_baseline_cap = 0
-        for symbol, close, cap_proxy, *_ in baseline_data:
-            if cap_proxy:
-                proxy_cap_baseline[symbol] = cap_proxy
-                total_baseline_cap += cap_proxy
-
-        if total_baseline_cap == 0:
-            print(f"⚠️ Skipping {sector}: baseline market cap is zero.")
-            continue
-
-        weights = {
-            symbol: cap / total_baseline_cap
-            for symbol, cap in proxy_cap_baseline.items()
-        }
-
-        previous_index = None
 
         for date in sorted_dates:
             daily_data = data_by_date[date]
-            index_val = 0
-            total_volume = 0
-            total_return = 0
+            index_return = 0
             weighted_return = 0
+            total_return = 0
+            total_volume = 0
             constituent_count = 0
 
             for symbol, close, cap_proxy, volume, future_ret in daily_data:
-                base_price = prices_by_symbol[symbol].get(baseline_date)
-                if symbol in weights and base_price and close:
-                    ratio = close / base_price
-                    index_val += weights[symbol] * ratio
+                previous_close = previous_closes.get(symbol)
 
-                    if future_ret is not None:
-                        weighted_return += weights[symbol] * future_ret
-                        total_return += future_ret
-                        constituent_count += 1
+                if previous_close and previous_close > 0:
+                    daily_ret = (close / previous_close) - 1
+                    weight = weights.get(symbol)
+                    if weight is not None:
+                        index_return += weight * daily_ret
+                        if future_ret is not None:
+                            weighted_return += weight * future_ret
+                            total_return += future_ret
+                            constituent_count += 1
+                        total_volume += volume or 0
+                else:
+                    print(f"⚠️ {symbol} missing previous close on {date}, skipped.")
 
-                    total_volume += volume or 0
-
-            final_index_value = round(index_val * 1000, 2)
-
-            return_vs_previous = None
-            if previous_index is not None:
-                return_vs_previous = round(((final_index_value - previous_index) / previous_index) * 100, 2)
-
+            final_index_value = round(previous_index * (1 + index_return), 2)
+            return_vs_previous = round(index_return * 100, 2)
             weighted_ret = round(weighted_return, 5) if constituent_count else None
 
+            # Fetch market cap
             cur.execute(""" 
-                SELECT 
-                SUM(0.3 * market_cap + 0.7 * market_cap_proxy)
+                SELECT SUM(0.3 * market_cap + 0.7 * market_cap_proxy)
                 FROM stock_market_table
                 WHERE sector = %s AND date = %s
             """, (sector, date))
@@ -140,7 +199,13 @@ def calculate_sector_indexes(start_date):
             ))
 
             print(f"✅ {sector} - {date}: Index = {final_index_value}, Return = {return_vs_previous}%")
+
             previous_index = final_index_value
+
+            # Update closes for next day
+            for symbol, close, *_ in daily_data:
+                if close is not None:
+                    previous_closes[symbol] = close
 
         conn.commit()
 
@@ -148,22 +213,37 @@ def calculate_sector_indexes(start_date):
     conn.close()
     print("🏁 Sector index calculation completed.")
 
-if __name__ == "__main__":
+def calculate_sector():
     if test_database_connection():
         latest_date = get_latest_stock_date()
         today = datetime.today().date()
 
         if latest_date is None:
             print("❌ No existing stock data found! Cannot proceed with updating.")
-        elif latest_date >= today:
+            return
+
+        if latest_date >= today:
             print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No automatic updates possible.")
-            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD: ")
-            try:
-                start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
-            except ValueError:
-                print("❌ Invalid date format. Please use YYYY-MM-DD format.")
-                exit()
+            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD (or press Enter to fallback to yesterday): ")
+
+            if start_date_input.strip() == "":
+                fallback_start_date = today - timedelta(days=1)
+                while fallback_start_date.weekday() >= 5:
+                    fallback_start_date -= timedelta(days=1)
+                print(f"⏩ No manual date provided. Falling back to previous trading day: {fallback_start_date}")
+                start_date = fallback_start_date
+            else:
+                try:
+                    start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
+                except ValueError:
+                    print("❌ Invalid date format. Please use YYYY-MM-DD format.")
+                    return
             calculate_sector_indexes(start_date)
         else:
             start_date = latest_date + timedelta(days=1)
             calculate_sector_indexes(start_date)
+    else:
+        print("❌ Failed database connection.")
+
+if __name__ == "__main__":
+    calculate_sector()

@@ -1,31 +1,57 @@
 import psycopg2
+import time
 from collections import defaultdict
 from psycopg2.extras import execute_values
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SUBSECTOR_TO_SECTOR
 from datetime import datetime, timedelta
 
+def get_db_connection():
+    return psycopg2.connect(**DB_CONFIG)
+
 def get_latest_stock_date():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_db_connection()
     cur = conn.cursor()
     try:
         cur.execute("SELECT MAX(date) FROM stock_market_table;")
         result = cur.fetchone()
-        if result and result[0]:
-            return result[0]
-        else:
-            return None
-    except Exception as e:
-        print(f"❌ Error fetching latest stock date: {e}")
-        return None
+        return result[0] if result and result[0] else None
+    finally:
+        cur.close()
+        conn.close()
+
+def get_subsector_index_at_date(sector, subsector, date):
+    """Fetch the subsector index value for a specific date."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT index_value
+            FROM sector_index_table
+            WHERE sector = %s AND subsector = %s AND date = %s
+            LIMIT 1
+        """, (sector, subsector, date))
+        result = cur.fetchone()
+        return result[0] if result else None
     finally:
         cur.close()
         conn.close()
 
 def process_subsector(subsector, start_date):
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_db_connection()
     cur = conn.cursor()
     sector_name = SUBSECTOR_TO_SECTOR[subsector]
+
+    # Step 1: Load the starting index value
+    baseline_index = get_subsector_index_at_date(sector_name, subsector, start_date)
+    if baseline_index is None:
+        print(f"❌ No baseline index found for {subsector} on {start_date}. Skipping.")
+        cur.close()
+        conn.close()
+        return
+
+    print(f"📌 Starting baseline for {subsector} on {start_date}: {baseline_index}")
+    time.sleep(1)  # Pause 1 second before continuing
 
     cur.execute("""
         SELECT symbol, date, close, market_cap_proxy, volume
@@ -52,6 +78,8 @@ def process_subsector(subsector, start_date):
 
     sorted_dates = sorted(all_dates)
     if not sorted_dates:
+        cur.close()
+        conn.close()
         return
 
     baseline_date = sorted_dates[0]
@@ -72,43 +100,43 @@ def process_subsector(subsector, start_date):
 
     weights = {symbol: cap / total_baseline_cap for symbol, cap in proxy_cap_baseline.items()}
 
-    index_history = []
     insert_buffer = []
-    previous_index = None
+    previous_index = baseline_index
 
     for i, date in enumerate(sorted_dates):
+        if date == start_date:
+            # First date: just load previous index
+            continue
+
         daily_data = data_by_date[date]
-        index_val = 0
-        total_volume = 0
+        index_return = 0
         total_return = 0
         weighted_return = 0
+        total_volume = 0
         constituent_count = 0
         prev_date = sorted_dates[i - 1] if i > 0 else None
 
         for symbol, close, cap_proxy, volume in daily_data:
-            base_price = prices_by_symbol[symbol].get(baseline_date)
             prev_close = prices_by_symbol[symbol].get(prev_date) if prev_date else None
 
-            if symbol in weights and base_price and close:
-                ratio = close / base_price
-                index_val += weights[symbol] * ratio
-
-                if prev_close:
-                    ret = (close - prev_close) / prev_close
-                    total_return += ret
-                    weighted_return += weights[symbol] * ret
+            if symbol in weights and prev_close and close:
+                daily_ret = (close / prev_close) - 1
+                weight = weights.get(symbol)
+                if weight is not None:
+                    index_return += weight * daily_ret
+                    total_return += daily_ret
+                    weighted_return += weight * daily_ret
                     constituent_count += 1
-
                 total_volume += volume or 0
 
-        final_index_value = round(index_val * 1000, 2)
-        index_history.append(final_index_value)
-
+        final_index_value = round(previous_index * (1 + index_return), 2)
         avg_return = round(total_return / constituent_count, 5) if constituent_count else None
         weighted_ret = round(weighted_return, 5) if constituent_count else None
-        return_vs_prev = round((final_index_value - previous_index) / previous_index * 100, 2) if previous_index else None
+        return_vs_prev = round(index_return * 100, 2) if previous_index else None
+
         previous_index = final_index_value
 
+        # Fetch market cap
         cur.execute("""
             SELECT market_cap
             FROM sector_index_table
@@ -161,31 +189,39 @@ def process_subsector(subsector, start_date):
     cur.close()
     conn.close()
 
-def calculate_subsector_indexes():
-    latest_date = get_latest_stock_date()
-    today = datetime.today().date()
+def calculate_subsector():
+    if test_database_connection():
+        latest_date = get_latest_stock_date()
+        today = datetime.today().date()
 
-    if latest_date is None:
-        print("❌ No existing stock data found! Cannot proceed with updating.")
-        return
-
-    if latest_date >= today:
-        print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No new data to calculate.")
-        start_date_input = input("Please manually enter a start date in format YYYY-MM-DD: ")
-        try:
-            start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
-        except ValueError:
-            print("❌ Invalid date format. Please use YYYY-MM-DD format.")
+        if latest_date is None:
+            print("❌ No existing stock data found! Cannot proceed with updating.")
             return
-    else:
-        start_date = latest_date + timedelta(days=1)
 
-    print(f"⏩ Starting subsector index calculation from {start_date}")
+        if latest_date >= today:
+            print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No new data to calculate.")
+            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD (or press Enter to use yesterday): ")
 
-    subsectors = list(SUBSECTOR_TO_SECTOR.keys())
-    for subsector in subsectors:
-        process_subsector(subsector, start_date)
+            if start_date_input.strip() == "":
+                fallback = today - timedelta(days=1)
+                while fallback.weekday() >= 5:
+                    fallback -= timedelta(days=1)
+                start_date = fallback
+                print(f"⏩ No date entered. Using previous trading day: {start_date}")
+            else:
+                try:
+                    start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
+                except ValueError:
+                    print("❌ Invalid date format. Please use YYYY-MM-DD format.")
+                    return
+        else:
+            start_date = latest_date + timedelta(days=1)
+
+        print(f"⏩ Starting subsector index calculation from {start_date}")
+
+        subsectors = list(SUBSECTOR_TO_SECTOR.keys())
+        for subsector in subsectors:
+            process_subsector(subsector, start_date)
 
 if __name__ == "__main__":
-    if test_database_connection():
-        calculate_subsector_indexes()
+    calculate_subsector()

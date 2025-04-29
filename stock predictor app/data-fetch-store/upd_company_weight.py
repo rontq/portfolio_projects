@@ -1,6 +1,7 @@
 import os
 import psycopg2
 import pandas as pd
+import time
 from dotenv import load_dotenv
 from db_params import DB_CONFIG, test_database_connection
 from datetime import datetime, timedelta
@@ -13,18 +14,15 @@ def get_latest_stock_date():
     try:
         cur.execute("SELECT MAX(date) FROM stock_market_table;")
         result = cur.fetchone()
-        if result and result[0]:
-            return result[0]
-        else:
-            return None
-    except Exception as e:
-        print(f"❌ Error fetching latest stock date: {e}")
-        return None
+        return result[0] if result and result[0] else None
     finally:
         cur.close()
         conn.close()
 
 def calculate_and_update_weights(start_date):
+    print(f"📌 Starting weight update for company records on {start_date}")
+    time.sleep(1)  # Pause before calculating
+
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
@@ -81,24 +79,36 @@ def calculate_and_update_weights(start_date):
     conn.close()
     print(f"\n📈 Sector and subsector weights updated for {updates} rows.")
 
-if __name__ == "__main__":
+def calculate_company_weight():
     if test_database_connection():
         latest_date = get_latest_stock_date()
         today = datetime.today().date()
 
         if latest_date is None:
             print("❌ No existing stock data found! Cannot proceed with updating.")
-        elif latest_date >= today:
+            return
+
+        if latest_date >= today:
             print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No automatic updates possible.")
-            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD: ")
-            try:
-                start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
-            except ValueError:
-                print("❌ Invalid date format. Please use YYYY-MM-DD format.")
-                exit()
+            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD (or press Enter to fallback to yesterday): ")
+
+            if start_date_input.strip() == "":
+                fallback_start_date = today - timedelta(days=1)
+                print(f"⏩ No manual date provided. Falling back to yesterday: {fallback_start_date}")
+                start_date = fallback_start_date
+            else:
+                try:
+                    start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
+                except ValueError:
+                    print("❌ Invalid date format. Please use YYYY-MM-DD format.")
+                    return
+
             calculate_and_update_weights(start_date)
         else:
             start_date = latest_date + timedelta(days=1)
             calculate_and_update_weights(start_date)
     else:
         print("❌ Failed database connection.")
+
+if __name__ == "__main__":
+    calculate_company_weight()
