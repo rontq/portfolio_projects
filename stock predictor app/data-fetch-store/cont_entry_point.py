@@ -3,6 +3,12 @@ import pandas as pd
 from db_params import DB_CONFIG, ALLOWED_COLUMNS
 from datetime import datetime
 
+import upd_company_weight
+import upd_data_fetch
+import upd_index_sector_calc
+import upd_index_subsector_calc
+import upd_vol_sma_subsector_calc
+
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
 
