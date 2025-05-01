@@ -5,6 +5,7 @@ from psycopg2.extras import execute_batch
 from dotenv import load_dotenv
 from db_params import DB_CONFIG, test_database_connection
 from datetime import datetime, timedelta
+import sys
 
 load_dotenv()
 
@@ -31,13 +32,7 @@ def get_latest_sector_index_date():
             WHERE is_subsector = TRUE
         """)
         result = cur.fetchone()
-        if result and result[0]:
-            return result[0]
-        else:
-            return None
-    except Exception as e:
-        print(f"❌ Error fetching latest sector index date: {e}")
-        return None
+        return result[0] if result and result[0] else None
     finally:
         cur.close()
         conn.close()
@@ -59,7 +54,6 @@ def update_subsector_indicators(start_date):
         return
 
     df = pd.DataFrame(rows, columns=["id", "subsector", "date", "index_value"])
-
     updates = []
 
     for subsector, group in df.groupby("subsector"):
@@ -84,12 +78,11 @@ def update_subsector_indicators(start_date):
         group["ema_125"] = calculate_ema(group["index_value"], 125)
         group["ema_200"] = calculate_ema(group["index_value"], 200)
 
-        expected_cols = [
+        validate_columns(group, [
             "volatility_5d", "volatility_10d", "volatility_20d", "volatility_40d",
             "sma_5", "sma_20", "sma_50", "sma_125", "sma_200",
             "ema_5", "ema_10", "ema_20", "ema_50", "ema_125", "ema_200"
-        ]
-        validate_columns(group, expected_cols)
+        ])
 
         for _, row in group.iterrows():
             updates.append((
@@ -98,7 +91,6 @@ def update_subsector_indicators(start_date):
                 row["ema_5"], row["ema_10"], row["ema_20"], row["ema_50"], row["ema_125"], row["ema_200"],
                 row["id"]
             ))
-
             print(f"✅ {subsector} - {row['date']}: Vol5d={row['volatility_5d']:.2f}, SMA5={row['sma_5']:.2f}, EMA5={row['ema_5']:.2f}")
 
     if updates:
@@ -121,50 +113,62 @@ def update_subsector_indicators(start_date):
                 ema_200 = %s
             WHERE id = %s
         """, updates)
-
         conn.commit()
 
     cur.close()
     conn.close()
-    print(f"\n📊 Updated {len(updates)} rows successfully.")
+    print(f"📊 Updated {len(updates)} rows successfully.")
 
-def calculate_vol_sma():
-    if test_database_connection():
-        latest_date = get_latest_sector_index_date()
-        today = datetime.today().date()
+def main(force_update=False, start_date=None):
+    if not test_database_connection():
+        print("❌ Failed database connection.")
+        return
 
-        if latest_date is None:
-            print("❌ No existing sector index data found! Cannot proceed with updating.")
-            return
+    latest_date = get_latest_sector_index_date()
+    today = datetime.today().date()
 
+    if latest_date is None:
+        print("❌ No existing sector index data found! Cannot proceed with updating.")
+        return
+
+    if start_date is None:
         if latest_date >= today:
-            print(f"⚠️ Latest sector index date ({latest_date}) is up to today ({today}). No automatic updates possible.")
-            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD (or press Enter to fallback to yesterday): ")
-
-            if start_date_input.strip() == "":
+            print(f"⚠️ Latest sector index date ({latest_date}) is up to or after today ({today})")
+            if force_update:
                 fallback = today - timedelta(days=1)
                 while fallback.weekday() >= 5:
                     fallback -= timedelta(days=1)
                 start_date = fallback
-                print(f"⏩ No date entered. Using previous trading day: {start_date}")
+                print(f"⏩ Forced update fallback to: {start_date}")
             else:
-                try:
-                    start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
-                except ValueError:
-                    print("❌ Invalid date format. Please use YYYY-MM-DD format.")
-                    return
-
+                start_date_input = input("Enter start date (YYYY-MM-DD) or press Enter to fallback to yesterday: ").strip()
+                if start_date_input == "":
+                    fallback = today - timedelta(days=1)
+                    while fallback.weekday() >= 5:
+                        fallback -= timedelta(days=1)
+                    start_date = fallback
+                    print(f"⏩ Fallback to last weekday: {start_date}")
+                else:
+                    try:
+                        start_date = datetime.strptime(start_date_input, "%Y-%m-%d").date()
+                    except ValueError:
+                        print("❌ Invalid date format.")
+                        return
         else:
             start_date = latest_date + timedelta(days=1)
 
-        # 📌 Print the starting point and pause
-        print(f"📌 Starting volatility/SMA update from {start_date}")
-        time.sleep(1)
-
-        update_subsector_indicators(start_date)
-
-    else:
-        print("❌ Failed database connection.")
+    print(f"📌 Starting volatility/SMA update from {start_date}")
+    time.sleep(1)
+    update_subsector_indicators(start_date)
 
 if __name__ == "__main__":
-    calculate_vol_sma()
+    force = "--force" in sys.argv
+    date_arg = None
+    for arg in sys.argv[1:]:
+        if arg != "--force":
+            try:
+                date_arg = datetime.strptime(arg, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+    main(force_update=force, start_date=date_arg)

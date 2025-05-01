@@ -5,8 +5,8 @@ import time
 from dotenv import load_dotenv
 from db_params import DB_CONFIG, test_database_connection
 from datetime import datetime, timedelta
+import sys
 
-load_dotenv()
 
 def get_latest_stock_date():
     conn = psycopg2.connect(**DB_CONFIG)
@@ -21,7 +21,7 @@ def get_latest_stock_date():
 
 def calculate_and_update_weights(start_date):
     print(f"📌 Starting weight update for company records on {start_date}")
-    time.sleep(1)  # Pause before calculating
+    time.sleep(1)
 
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
@@ -77,38 +77,57 @@ def calculate_and_update_weights(start_date):
     conn.commit()
     cur.close()
     conn.close()
-    print(f"\n📈 Sector and subsector weights updated for {updates} rows.")
+    print(f"📈 Sector and subsector weights updated for {updates} rows.")
 
-def calculate_company_weight():
-    if test_database_connection():
-        latest_date = get_latest_stock_date()
-        today = datetime.today().date()
+def main(force_update: bool = False, start_date: datetime.date = None):
+    if not test_database_connection():
+        print("❌ Failed database connection.")
+        return
 
-        if latest_date is None:
-            print("❌ No existing stock data found! Cannot proceed with updating.")
-            return
+    latest_date = get_latest_stock_date()
+    today = datetime.today().date()
 
+    if latest_date is None:
+        print("❌ No existing stock data found! Cannot proceed with updating.")
+        return
+
+    if start_date is None:
         if latest_date >= today:
-            print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No automatic updates possible.")
-            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD (or press Enter to fallback to yesterday): ")
+            print(f"⚠️ Latest date in DB ({latest_date}) is up to or after today ({today})")
 
-            if start_date_input.strip() == "":
-                fallback_start_date = today - timedelta(days=1)
-                print(f"⏩ No manual date provided. Falling back to yesterday: {fallback_start_date}")
-                start_date = fallback_start_date
+            if force_update:
+                fallback = today - timedelta(days=1)
+                while fallback.weekday() >= 5:
+                    fallback -= timedelta(days=1)
+                start_date = fallback
+                print(f"⏩ Forced update fallback to: {start_date}")
             else:
-                try:
-                    start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
-                except ValueError:
-                    print("❌ Invalid date format. Please use YYYY-MM-DD format.")
-                    return
-
-            calculate_and_update_weights(start_date)
+                start_date_input = input("Enter start date (YYYY-MM-DD) or press Enter to fallback to yesterday: ").strip()
+                if start_date_input == "":
+                    fallback = today - timedelta(days=1)
+                    while fallback.weekday() >= 5:
+                        fallback -= timedelta(days=1)
+                    start_date = fallback
+                    print(f"⏩ Fallback to last weekday: {start_date}")
+                else:
+                    try:
+                        start_date = datetime.strptime(start_date_input, "%Y-%m-%d").date()
+                    except ValueError:
+                        print("❌ Invalid date format.")
+                        return
         else:
             start_date = latest_date + timedelta(days=1)
-            calculate_and_update_weights(start_date)
-    else:
-        print("❌ Failed database connection.")
+
+    calculate_and_update_weights(start_date)
 
 if __name__ == "__main__":
-    calculate_company_weight()
+    force = "--force" in sys.argv
+    date_arg = None
+    for arg in sys.argv[1:]:
+        if arg != "--force":
+            try:
+                date_arg = datetime.strptime(arg, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+    main(force_update=force, start_date=date_arg)

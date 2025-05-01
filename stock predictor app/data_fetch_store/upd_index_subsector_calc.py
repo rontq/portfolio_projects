@@ -5,6 +5,7 @@ from psycopg2.extras import execute_values
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SUBSECTOR_TO_SECTOR
 from datetime import datetime, timedelta
+import sys
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
@@ -21,7 +22,6 @@ def get_latest_stock_date():
         conn.close()
 
 def get_subsector_index_at_date(sector, subsector, date):
-    """Fetch the subsector index value for a specific date."""
     conn = get_db_connection()
     cur = conn.cursor()
     try:
@@ -42,7 +42,6 @@ def process_subsector(subsector, start_date):
     cur = conn.cursor()
     sector_name = SUBSECTOR_TO_SECTOR[subsector]
 
-    # Step 1: Load the starting index value
     baseline_index = get_subsector_index_at_date(sector_name, subsector, start_date)
     if baseline_index is None:
         print(f"❌ No baseline index found for {subsector} on {start_date}. Skipping.")
@@ -51,7 +50,7 @@ def process_subsector(subsector, start_date):
         return
 
     print(f"📌 Starting baseline for {subsector} on {start_date}: {baseline_index}")
-    time.sleep(1)  # Pause 1 second before continuing
+    time.sleep(1)
 
     cur.execute("""
         SELECT symbol, date, close, market_cap_proxy, volume
@@ -82,9 +81,7 @@ def process_subsector(subsector, start_date):
         conn.close()
         return
 
-    baseline_date = sorted_dates[0]
-    baseline_data = data_by_date[baseline_date]
-
+    baseline_data = data_by_date[sorted_dates[0]]
     proxy_cap_baseline = {}
     total_baseline_cap = 0
     for symbol, close, cap_proxy, *_ in baseline_data:
@@ -105,38 +102,30 @@ def process_subsector(subsector, start_date):
 
     for i, date in enumerate(sorted_dates):
         if date == start_date:
-            # First date: just load previous index
             continue
 
         daily_data = data_by_date[date]
-        index_return = 0
-        total_return = 0
-        weighted_return = 0
-        total_volume = 0
+        index_return = total_return = weighted_return = total_volume = 0
         constituent_count = 0
         prev_date = sorted_dates[i - 1] if i > 0 else None
 
         for symbol, close, cap_proxy, volume in daily_data:
             prev_close = prices_by_symbol[symbol].get(prev_date) if prev_date else None
-
             if symbol in weights and prev_close and close:
                 daily_ret = (close / prev_close) - 1
                 weight = weights.get(symbol)
-                if weight is not None:
-                    index_return += weight * daily_ret
-                    total_return += daily_ret
-                    weighted_return += weight * daily_ret
-                    constituent_count += 1
+                index_return += weight * daily_ret
+                total_return += daily_ret
+                weighted_return += weight * daily_ret
+                constituent_count += 1
                 total_volume += volume or 0
 
         final_index_value = round(previous_index * (1 + index_return), 2)
         avg_return = round(total_return / constituent_count, 5) if constituent_count else None
         weighted_ret = round(weighted_return, 5) if constituent_count else None
         return_vs_prev = round(index_return * 100, 2) if previous_index else None
-
         previous_index = final_index_value
 
-        # Fetch market cap
         cur.execute("""
             SELECT market_cap
             FROM sector_index_table
@@ -183,45 +172,61 @@ def process_subsector(subsector, start_date):
                 return_vs_previous = EXCLUDED.return_vs_previous,
                 influence_weight = EXCLUDED.influence_weight
         """, insert_buffer)
-
         conn.commit()
 
     cur.close()
     conn.close()
 
-def calculate_subsector():
-    if test_database_connection():
-        latest_date = get_latest_stock_date()
-        today = datetime.today().date()
+def main(force_update=False, start_date=None):
+    if not test_database_connection():
+        print("❌ Failed database connection.")
+        return
 
-        if latest_date is None:
-            print("❌ No existing stock data found! Cannot proceed with updating.")
-            return
+    latest_date = get_latest_stock_date()
+    today = datetime.today().date()
 
+    if latest_date is None:
+        print("❌ No existing stock data found! Cannot proceed with updating.")
+        return
+
+    if start_date is None:
         if latest_date >= today:
-            print(f"⚠️ Latest date in database ({latest_date}) is up to today ({today}). No new data to calculate.")
-            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD (or press Enter to use yesterday): ")
-
-            if start_date_input.strip() == "":
+            print(f"⚠️ Latest date in DB ({latest_date}) is up to or after today ({today})")
+            if force_update:
                 fallback = today - timedelta(days=1)
                 while fallback.weekday() >= 5:
                     fallback -= timedelta(days=1)
                 start_date = fallback
-                print(f"⏩ No date entered. Using previous trading day: {start_date}")
+                print(f"⏩ Forced update fallback to: {start_date}")
             else:
-                try:
-                    start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
-                except ValueError:
-                    print("❌ Invalid date format. Please use YYYY-MM-DD format.")
-                    return
+                start_date_input = input("Enter start date (YYYY-MM-DD) or press Enter to fallback to yesterday: ").strip()
+                if start_date_input == "":
+                    fallback = today - timedelta(days=1)
+                    while fallback.weekday() >= 5:
+                        fallback -= timedelta(days=1)
+                    start_date = fallback
+                    print(f"⏩ Fallback to last weekday: {start_date}")
+                else:
+                    try:
+                        start_date = datetime.strptime(start_date_input, "%Y-%m-%d").date()
+                    except ValueError:
+                        print("❌ Invalid date format.")
+                        return
         else:
             start_date = latest_date + timedelta(days=1)
 
-        print(f"⏩ Starting subsector index calculation from {start_date}")
-
-        subsectors = list(SUBSECTOR_TO_SECTOR.keys())
-        for subsector in subsectors:
-            process_subsector(subsector, start_date)
+    print(f"⏩ Starting subsector index calculation from {start_date}")
+    for subsector in SUBSECTOR_TO_SECTOR.keys():
+        process_subsector(subsector, start_date)
 
 if __name__ == "__main__":
-    calculate_subsector()
+    force = "--force" in sys.argv
+    date_arg = None
+    for arg in sys.argv[1:]:
+        if arg != "--force":
+            try:
+                date_arg = datetime.strptime(arg, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+    main(force_update=force, start_date=date_arg)

@@ -1,9 +1,9 @@
-import os
 import psycopg2
 import pandas as pd
 import time
 import yfinance as yf
 from dotenv import load_dotenv
+import sys
 from db_params import DB_CONFIG, test_database_connection, api_key
 from stock_list import SECTOR_STOCKS, MACRO_CODES
 from ta.trend import SMAIndicator, EMAIndicator, MACD
@@ -11,9 +11,6 @@ from ta.momentum import RSIIndicator
 from ta.volume import OnBalanceVolumeIndicator
 from ta.volatility import BollingerBands
 from datetime import datetime, timedelta
-
-# Load environment variables
-load_dotenv()
 
 # Symbol mappings
 SECTOR_IDS = {name: idx for idx, name in enumerate(SECTOR_STOCKS.keys(), 1)}
@@ -144,66 +141,80 @@ def insert_data(symbol, sector, subsector, df, market_data):
     # --- your real insert logic will be filled here ---
     pass
 
-def main():
-    if test_database_connection():
-        conn = psycopg2.connect(**DB_CONFIG)
+def main(force_update: bool = False, start_date: datetime.date = None):
+    if not test_database_connection():
+        print("❌ Failed DB Connection.")
+        return
 
-        latest_date = get_latest_global_date(conn)
-        today = datetime.today().date()
+    conn = psycopg2.connect(**DB_CONFIG)
+    latest_date = get_latest_global_date(conn)
+    today = datetime.today().date()
 
-        if latest_date is None:
-            print("❌ No data found in database! This updater script assumes prior full loading.")
-            conn.close()
-            return
+    if latest_date is None:
+        print("❌ No data found in database! This updater script assumes prior full loading.")
+        conn.close()
+        return
 
+    if start_date is None:
         if latest_date >= today:
-            print(f"⚠️ Latest date in database ({latest_date}) is up to or after today ({today}). No automatic updates possible.")
-            start_date_input = input("Please manually enter a start date in format YYYY-MM-DD (or press Enter to fallback to yesterday): ")
+            print(f"⚠️ Latest date in DB ({latest_date}) is up to or after today ({today})")
 
-            if start_date_input.strip() == "":
+            if force_update:
+                # Fallback to last valid trading day
                 fallback = today - timedelta(days=1)
-                while fallback.weekday() >= 5:
+                while fallback.weekday() >= 5:  # Skip weekends
                     fallback -= timedelta(days=1)
                 start_date = fallback
-                print(f"⏩ No date entered. Using previous trading day: {start_date}")
+                print(f"⏩ Forced update fallback to: {start_date}")
             else:
-                try:
-                    start_date = datetime.strptime(start_date_input.strip(), "%Y-%m-%d").date()
-                except ValueError:
-                    print("❌ Invalid date format. Please use YYYY-MM-DD format.")
-                    conn.close()
-                    return
+                start_date_input = input("Enter start date (YYYY-MM-DD) or press Enter to fallback to yesterday: ").strip()
+                if start_date_input == "":
+                    fallback = today - timedelta(days=1)
+                    while fallback.weekday() >= 5:
+                        fallback -= timedelta(days=1)
+                    start_date = fallback
+                    print(f"⏩ Fallback to last weekday: {start_date}")
+                else:
+                    try:
+                        start_date = datetime.strptime(start_date_input, "%Y-%m-%d").date()
+                    except ValueError:
+                        print("❌ Invalid date format.")
+                        conn.close()
+                        return
         else:
             start_date = latest_date + timedelta(days=1)
 
-        # 📌 Print the starting point and pause
-        print(f"📌 Starting global data update from {start_date}")
-        time.sleep(1)
+    print(f"📌 Starting update from {start_date}")
+    time.sleep(1)
 
-        # Continue with the update
-        macro_df = fetch_macro_data(start_date=start_date)
-        vix_df = fetch_vix_data(start_date=start_date)
+    macro_df = fetch_macro_data(start_date=start_date)
+    vix_df = fetch_vix_data(start_date=start_date)
 
-        for sector, subsectors in SECTOR_STOCKS.items():
-            for subsector, symbols in subsectors.items():
-                for symbol in symbols:
-                    print(f"📈 Updating {symbol} ({sector} - {subsector})...")
-                    try:
-                        df, market_data = fetch_stock_data(symbol, start_date=start_date)
-
-                        if df is not None and not df.empty:
-                            df = df.merge(vix_df, on="date", how="left")
-                            if not macro_df.empty:
-                                df = df.merge(macro_df, on="date", how="left")
-                            insert_data(symbol, sector, subsector, df, market_data)
-                        else:
-                            print(f"⚠️ No new data for {symbol}")
-                    except Exception as e:
-                        print(f"⚠️ Failed to update {symbol}: {e}")
-
-        conn.close()
-    else:
-        print("❌ Failed DB Connection.")
+    for sector, subsectors in SECTOR_STOCKS.items():
+        for subsector, symbols in subsectors.items():
+            for symbol in symbols:
+                print(f"📈 Updating {symbol} ({sector} - {subsector})...")
+                try:
+                    df, market_data = fetch_stock_data(symbol, start_date=start_date)
+                    if df is not None and not df.empty:
+                        df = df.merge(vix_df, on="date", how="left")
+                        if not macro_df.empty:
+                            df = df.merge(macro_df, on="date", how="left")
+                        insert_data(symbol, sector, subsector, df, market_data)
+                    else:
+                        print(f"⚠️ No new data for {symbol}")
+                except Exception as e:
+                    print(f"⚠️ Failed to update {symbol}: {e}")
+    conn.close()
 
 if __name__ == "__main__":
-    main()
+    force = "--force" in sys.argv
+    date_arg = None
+    for arg in sys.argv[1:]:
+        if arg != "--force":
+            try:
+                date_arg = datetime.strptime(arg, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+    main(force_update=force, start_date=date_arg)

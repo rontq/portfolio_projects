@@ -90,35 +90,36 @@ def fetch_data(level: str, name: str, columns: list, start_date: str, end_date: 
     finally:
         conn.close()
 
-def update_database():
-    upd_data_fetch.main()
-    
-def update_sector_index():
-    upd_index_sector_calc.calculate_sector()
+def update_database(force_update: bool = False, start_date: datetime.date = None):
+    upd_data_fetch.main(force_update=force_update, start_date=start_date)
 
-def update_subsector_index():
-    upd_index_subsector_calc.calculate_subsector()
+def update_sector_index(force_update: bool = False, start_date: datetime.date = None):
+    upd_index_sector_calc.calculate_sector(force_update=force_update, start_date=start_date)
 
-def update_subsector_vol_sma():
-    upd_vol_sma_subsector_calc.calculate_vol_sma()
+def update_subsector_index(force_update: bool = False, start_date: datetime.date = None):
+    upd_index_subsector_calc.calculate_subsector(force_update=force_update, start_date=start_date)
 
-def update_company_weight():
-    upd_company_weight.calculate_company_weight()
+def update_subsector_vol_sma(force_update: bool = False, start_date: datetime.date = None):
+    upd_vol_sma_subsector_calc.calculate_vol_sma(force_update=force_update, start_date=start_date)
 
-if __name__ == "__main__":
+def update_company_weight(force_update: bool = False, start_date: datetime.date = None):
+    upd_company_weight.calculate_company_weight(force_update=force_update, start_date=start_date)
+
+
+def cli_entry():
     import sys
 
     if len(sys.argv) < 2:
         print("⚠️ Usage: python entry.py <command> [parameters]")
         print("Available commands: fetch_data, update_database, update_sector_index, update_subsector_index, update_subsector_vol_sma, update_company_weight")
-        sys.exit(1)
+        return
 
     command = sys.argv[1]
 
     if command == "fetch_data":
         if len(sys.argv) < 6:
-            print("⚠️ Usage for fetch_data: python entry.py fetch_data <level> <name> <start_date> <columns_comma_separated> [end_date_optional]")
-            sys.exit(1)
+            print("⚠️ Usage: python entry.py fetch_data <level> <name> <start_date> <columns_comma_separated> [end_date_optional]")
+            return
 
         level = sys.argv[2]
         name = sys.argv[3]
@@ -128,21 +129,19 @@ if __name__ == "__main__":
 
         df = fetch_data(level, name, columns, start_date, end_date)
         print(df)
-
     elif command == "update_database":
         update_database()
-
     elif command == "update_sector_index":
         update_sector_index()
-
     elif command == "update_subsector_index":
         update_subsector_index()
-
     elif command == "update_subsector_vol_sma":
         update_subsector_vol_sma()
-
     elif command == "update_company_weight":
         update_company_weight()
-
     else:
         print(f"❌ Unknown command '{command}'")
+
+
+if __name__ == "__main__":
+    cli_entry()
