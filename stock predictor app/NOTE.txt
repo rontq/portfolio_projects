@@ -1,0 +1,1 @@
+yfinance has been rate limited. work suspended

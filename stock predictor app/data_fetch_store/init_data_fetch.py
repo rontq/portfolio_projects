@@ -2,7 +2,6 @@ import time
 import yfinance as yf
 import pandas as pd
 import psycopg2
-from psycopg2 import OperationalError
 from psycopg2.extras import execute_values
 from db_params import DB_CONFIG, test_database_connection, create_table, api_key
 from stock_list import SECTOR_STOCKS, MACRO_CODES
