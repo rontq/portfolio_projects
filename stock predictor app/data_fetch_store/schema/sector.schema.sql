@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS sector_index_table;
+-- DROP TABLE IF EXISTS sector_index_table;
 
 CREATE TABLE sector_index_table (
     id SERIAL PRIMARY KEY,

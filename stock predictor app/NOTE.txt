@@ -1,1 +1,3 @@
 yfinance has been rate limited. work suspended
+
+Edit: yfinance 

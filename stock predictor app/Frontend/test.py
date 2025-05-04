@@ -1,4 +1,4 @@
-import yfinance as yf
+from yahooquery import Ticker
 
-nvda = yf.Ticker("NVDA")
+nvda = Ticker("NVDA")
 print(nvda.history(period="1d"))
