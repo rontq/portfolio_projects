@@ -20,7 +20,6 @@ xgb_params = {
 }
 
 input_params = {
-    "symbol_id": 100,
     "features": [
         'open', 'high', 'low', 'close', 'volume', 'adj_close',
         'sma_5', 'sma_20', 'sma_50', 'sma_125', 'sma_200', 'sma_200_weekly',
