@@ -5,64 +5,91 @@ import xgboost as xgb
 import numpy as np
 import gc
 from sklearn.metrics import mean_squared_error
-from dotenv import load_dotenv
 import psycopg2
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
+from data_fetch_store.db_params import DB_CONFIG
 
-DB_CONFIG = {
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT")
+xgb_params = {
+    "n_estimators": 500,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "tree_method": "hist",
+    "random_state": 42
 }
 
-def fetch_company_data(symbol):
-    conn = psycopg2.connect(**DB_CONFIG)
-    query = """
-        SELECT * FROM stock_market_table
-        WHERE symbol = %s AND future_return_1d IS NOT NULL
-        ORDER BY date
-    """
-    df = pd.read_sql(query, conn, params=(symbol,))
-    conn.close()
-    return df
-
-def assign_symbol_id(df, symbol_id=100):
-    df['symbol_id'] = symbol_id
-    return df
-
-def preprocess(df):
-    df = df.sort_values("date")
-    df = assign_symbol_id(df)
-
-    features = [
+input_params = {
+    "symbol_id": 100,
+    "features": [
         'open', 'high', 'low', 'close', 'volume', 'adj_close',
         'sma_5', 'sma_20', 'sma_50', 'sma_125', 'sma_200', 'sma_200_weekly',
         'ema_5', 'ema_20', 'ema_50', 'ema_125', 'ema_200',
         'macd', 'dma', 'rsi',
         'bollinger_upper', 'bollinger_middle', 'bollinger_lower', 'obv',
         'market_cap', 'market_cap_proxy', 'vix_close', 'symbol_id'
-    ]
+    ],
+    "target_column": "index_value"
+}
 
-    df = df.dropna(subset=features + ['future_return_1d'])
+
+
+def fetch_sector_data_for_symbol(symbol):
+    conn = psycopg2.connect(**DB_CONFIG)
+
+    # Step 1: Get sector_id for the symbol
+    sector_id_query = "SELECT DISTINCT sector_id FROM stock_market_table WHERE symbol = %s;"
+    sector_id_df = pd.read_sql(sector_id_query, conn, params=(symbol,))
+
+    if sector_id_df.empty:
+        conn.close()
+        raise ValueError(f"No sector_id found for symbol: {symbol}")
+
+    sector_id_val = int(sector_id_df.iloc[0, 0])
+
+    # Step 2: Fetch all companies in that sector
+    stock_query = """
+        SELECT * FROM stock_market_table
+        WHERE sector_id = %s AND future_return_1d IS NOT NULL
+        ORDER BY date;
+    """
+    stock_df = pd.read_sql(stock_query, conn, params=(sector_id_val,))
+
+    # Step 3: Fetch sector index data
+    index_query = """
+        SELECT * FROM sector_index_table
+        WHERE sector_id = %s
+        ORDER BY date;
+    """
+    index_df = pd.read_sql(index_query, conn, params=(sector_id_val,))
+
+    conn.close()
+
+    # Step 4: Merge index data into stock data
+    merged_df = pd.merge(stock_df, index_df, on=["sector", "date"], how="left", suffixes=("", "_sector"))
+
+    return merged_df
+
+
+def assign_symbol_id(df, symbol_id=100):
+    df['symbol_id'] = symbol_id
+    return df
+
+
+def preprocess(df, features, target_col):
+    df = df.sort_values("date")
+    df = assign_symbol_id(df)
+    df = df.dropna(subset=features + [target_col])
     X = df[features]
-    y = df['future_return_1d']
+    y = df[target_col]
     return X, y
 
-def train_model(X, y):
-    model = xgb.XGBRegressor(
-        n_estimators=500,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        tree_method='hist',
-        random_state=42
-    )
+
+def train_model(X, y, xgb_params):
+    model = xgb.XGBRegressor(**xgb_params)
     model.fit(X, y)
     return model
+
 
 def save_model(model, symbol):
     model_dir = "models"
@@ -71,20 +98,22 @@ def save_model(model, symbol):
     joblib.dump(model, file_path)
     print(f"✅ Model saved: {file_path}")
 
+
 def clear_resources():
     gc.collect()
     xgb.Booster().free()
     print("🧹 Cleared memory and XGBoost cache.")
 
-def run_pipeline(symbol, symbol_id=100):
-    print(f"\n\U0001f4ca Starting training for company: {symbol}")
-    df = fetch_company_data(symbol)
-    df = assign_symbol_id(df, symbol_id)
-    X, y = preprocess(df)
-    model = train_model(X, y)
+
+def run_pipeline(symbol, input_params, xgb_params):
+    print(f"\n📊 Starting training for company: {symbol}")
+    df = fetch_sector_data_for_symbol(symbol)
+    df = assign_symbol_id(df, input_params["symbol_id"])
+    X, y = preprocess(df, input_params["features"], input_params["target_column"])
+    model = train_model(X, y, xgb_params)
     save_model(model, symbol)
     clear_resources()
 
+
 if __name__ == "__main__":
-    # Example run: NVDA assigned ID 100
-    run_pipeline("NVDA", symbol_id=100)
+    run_pipeline("NVDA", input_params, xgb_params)
