@@ -6,8 +6,19 @@ import numpy as np
 import gc
 from sklearn.metrics import mean_squared_error
 import psycopg2
+from db_params import DB_CONFIG
 
-from data_fetch_store.db_params import DB_CONFIG
+import sys, os
+
+current_file = os.path.abspath(__file__)
+project_root = os.path.abspath(os.path.join(current_file, "../../.."))
+sys.path.append(project_root)
+
+try:
+    from data_fetch_store.stock_list import SECTORS
+    print("SECTORS imported successfully!")
+except ModuleNotFoundError as e:
+    print(f"Error: {e}")
 
 xgb_params = {
     "n_estimators": 500,
@@ -33,39 +44,30 @@ input_params = {
 
 
 
-def fetch_sector_data_for_symbol(symbol):
+def fetch_data_for_sector(sector_id):
     conn = psycopg2.connect(**DB_CONFIG)
 
-    # Step 1: Get sector_id for the symbol
-    sector_id_query = "SELECT DISTINCT sector_id FROM stock_market_table WHERE symbol = %s;"
-    sector_id_df = pd.read_sql(sector_id_query, conn, params=(symbol,))
-
-    if sector_id_df.empty:
-        conn.close()
-        raise ValueError(f"No sector_id found for symbol: {symbol}")
-
-    sector_id_val = int(sector_id_df.iloc[0, 0])
-
-    # Step 2: Fetch all companies in that sector
+    # Step 1: Get all stock data (no is_subsector filter here)
     stock_query = """
         SELECT * FROM stock_market_table
         WHERE sector_id = %s AND future_return_1d IS NOT NULL
         ORDER BY date;
     """
-    stock_df = pd.read_sql(stock_query, conn, params=(sector_id_val,))
+    stock_df = pd.read_sql(stock_query, conn, params=(sector_id,))
 
-    # Step 3: Fetch sector index data
+    # Step 2: Get sector index data (exclude subsectors)
     index_query = """
-        SELECT * FROM sector_index_table
-        WHERE sector_id = %s
+        SELECT date, sector, sector_id, index_value
+        FROM sector_index_table
+        WHERE sector_id = %s AND is_subsector = FALSE
         ORDER BY date;
     """
-    index_df = pd.read_sql(index_query, conn, params=(sector_id_val,))
+    index_df = pd.read_sql(index_query, conn, params=(sector_id,))
 
     conn.close()
 
-    # Step 4: Merge index data into stock data
-    merged_df = pd.merge(stock_df, index_df, on=["sector", "date"], how="left", suffixes=("", "_sector"))
+    # Step 3: Merge index value into stock data
+    merged_df = pd.merge(stock_df, index_df, on=["sector", "date"], how="left")
 
     return merged_df
 
@@ -90,13 +92,13 @@ def train_model(X, y, xgb_params):
     return model
 
 
-def save_model(model, symbol):
-    model_dir = "models"
+def save_model(model, sector_name, model_dir="trained_models"):
+    """Save trained model using the sector name."""
     os.makedirs(model_dir, exist_ok=True)
-    file_path = os.path.join(model_dir, f"xgb_model_{symbol.lower()}.joblib")
-    joblib.dump(model, file_path)
-    print(f"✅ Model saved: {file_path}")
-
+    safe_name = sector_name.lower().replace(" ", "_")
+    path = os.path.join(model_dir, f"xgb_model_{safe_name}.joblib")
+    joblib.dump(model, path)
+    print(f"✅ Saved model: {path}")
 
 def clear_resources():
     gc.collect()
@@ -104,15 +106,40 @@ def clear_resources():
     print("🧹 Cleared memory and XGBoost cache.")
 
 
-def run_pipeline(symbol, input_params, xgb_params):
-    print(f"\n📊 Starting training for company: {symbol}")
-    df = fetch_sector_data_for_symbol(symbol)
-    df = assign_symbol_id(df, input_params["symbol_id"])
+def run_pipeline_for_sector(sector_id, sector_name, input_params, xgb_params):
+    """Run the full pipeline for one sector."""
+    print(f"\n📊 Training sector: {sector_name} (ID: {sector_id})")
+    df = fetch_data_for_sector(sector_id)
     X, y = preprocess(df, input_params["features"], input_params["target_column"])
     model = train_model(X, y, xgb_params)
-    save_model(model, symbol)
+    save_model(model, sector_id)
     clear_resources()
 
 
+def train_selected_sectors(sectors, input_params, xgb_params):
+    """Train models for a fixed list of sector names."""
+    conn = psycopg2.connect(**DB_CONFIG)
+    sector_map = {}
+
+    for name in sectors:
+        query = """
+            SELECT DISTINCT sector_id FROM sector_index_table
+            WHERE sector = %s AND is_subsector = FALSE;
+        """
+        df = pd.read_sql(query, conn, params=(name,))
+        if not df.empty:
+            sector_map[name] = df.iloc[0]["sector_id"]
+        else:
+            print(f"⚠️ Skipping unknown or invalid sector: {name}")
+
+    conn.close()
+
+    for name, sid in sector_map.items():
+        try:
+            run_pipeline_for_sector(sid, name, input_params, xgb_params)
+        except Exception as e:
+            print(f"❌ Error training {name} (ID: {sid}): {e}")
+
+
 if __name__ == "__main__":
-    run_pipeline("NVDA", input_params, xgb_params)
+    train_selected_sectors(SECTORS, input_params, xgb_params)
