@@ -1,4 +1,4 @@
--- DROP TABLE IF EXISTS stock_market_table;
+DROP TABLE IF EXISTS stock_market_table;
 
 CREATE TABLE stock_market_table (
     id SERIAL PRIMARY KEY,

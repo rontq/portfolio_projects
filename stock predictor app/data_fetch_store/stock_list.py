@@ -104,7 +104,7 @@ SECTOR_STOCKS = {
             "BWA", "DAN", "LEA", "ALV", "GNTX", "AAP"
         ],
         "Household Durables": [
-            "WHR", "LEG", "NWL", "DHI", "LEN", "PHM", "NVR", "MAS", "FBHS"
+            "WHR", "LEG", "NWL", "DHI", "LEN", "PHM", "NVR", "MAS"
         ],
         "Textiles, Apparel & Luxury Goods": [
             "VFC", "PVH", "RL", "TPR", "UAA", "NKE", "LULU"
@@ -123,34 +123,8 @@ SECTOR_STOCKS = {
         ],
         "Diversified Consumer Services": [
             "HRB", "LYV", "EDU"],
-        "Media": [
-            "DIS", "NFLX", "CMCSA", "FOXA", "VIAC", "DISCA", "DISCK", "NWSA", "NWS"
-        ],
         "Internet Retail & E-Commerce": [
             "MELI", "FVRR"
-        ]
-    },
-    "Energy": {
-        "Oil & Gas Drilling": [
-            "RIG", "NE", "VAL", "DO", "BORR"
-        ],
-        "Oil & Gas Equipment & Services": [
-            "SLB", "HAL", "BKR", "NOV", "FTI", "OIS", "DRQ"
-        ],
-        "Integrated Oil & Gas": [
-            "XOM", "CVX", "BP", "SHEL", "TOT", "ENI", "PTR"
-        ],
-        "Oil & Gas Exploration & Production": [
-            "EOG", "PXD", "COP", "DVN", "APA", "MRO", "FANG", "OVV"
-        ],
-        "Oil & Gas Refining & Marketing": [
-            "PSX", "VLO", "MPC", "DK", "HFC", "PBF"
-        ],
-        "Oil & Gas Storage & Transportation": [
-            "KMI", "ENB", "WMB", "EPD", "ET", "MPLX", "TRP"
-        ],
-        "Coal & Consumable Fuels": [
-            "BTU", "ARCH", "CEIX", "HCC", "NC", "YAL"
         ]
     },
 
@@ -171,7 +145,7 @@ SECTOR_STOCKS = {
             "ROP", "RHI", "VRSK", "CDW", "AON", "MMC", "WTW", "EFX"
         ],
         "Building Products": [
-            "MAS", "WOOD", "BMC", "SPAR"
+            "MAS", "WOOD", "BMC"
         ],
         "Diversified Industrials": [
             "MMM", "GE", "JCI", "IEX"
@@ -198,7 +172,7 @@ SECTOR_STOCKS = {
             "WMT", "COST", "KR", "ACI", "TGT", "BJ", "SFM", "CASY"
         ],
         "Drug Retail": [
-            "WBA", "RAD"
+            "WBA"
         ],
         "Consumer Staples Distribution & Retail": [
             "PFGC", "SYY"
@@ -208,7 +182,7 @@ SECTOR_STOCKS = {
     "Communication Services": {
         "Interactive Media & Services": [
             "GOOG", "GOOGL", "META", "NFLX", "PINS", "TWLO", "ZM", "DOCN", "TTD", "RUBI", "SNAP", 
-            "BIDU", "MTCH", "YELP", "YNDX"
+            "BIDU", "MTCH", "YELP"
         ],
         "Media & Entertainment": [
             "DIS", "PARA", "WBD", "FOXA", "CMCSA", "ROKU", "LYV", "IMAX", "SIRI", "FWONA", "NYT", 
@@ -224,20 +198,29 @@ SECTOR_STOCKS = {
 
 
     "Energy": {
+        "Oil & Gas Drilling": [
+            "RIG", "NE", "VAL", "DO", "BORR"
+        ],
+        "Oil & Gas Equipment & Services": [
+            "SLB", "HAL", "BKR", "NOV", "FTI", "OIS", "DRQ"
+        ],
         "Integrated Oil & Gas": [
-            "XOM", "CVX", "SHEL", "BP", "TOT"
+            "XOM", "CVX", "BP", "SHEL", "ENI", "PTR"
         ],
         "Oil & Gas Exploration & Production": [
-            "COP", "EOG", "DVN", "FANG", "APA", "MRO", "PXD", "OXY"
+            "EOG", "COP", "DVN", "APA", "FANG", "OVV"
         ],
-        "Oilfield Services & Equipment": [
-            "SLB", "HAL", "BKR", "NOV", "PTEN", "NBR"
+        "Oil & Gas Refining & Marketing": [
+            "PSX", "VLO", "MPC", "DK", "HFC", "PBF"
         ],
-        "Midstream & Pipelines": [
-            "KMI", "ENB", "ET", "WMB", "OKE", "TRGP", "MMP", "AM"
+        "Oil & Gas Storage & Transportation": [
+            "KMI", "ENB", "WMB", "EPD", "ET", "MPLX", "TRP", "TRGP", "AM"
+        ],
+        "Coal & Consumable Fuels": [
+            "BTU", "ARCH", "CEIX", "HCC", "NC", "YAL"
         ],
         "Renewables": [
-            "NEE", "BEP", "CWEN", "FSLR", "RUN", "TERP", "REGI"
+            "BEP", "CWEN", "FSLR", "RUN"
         ]
     },
 
@@ -255,7 +238,7 @@ SECTOR_STOCKS = {
             "WTRG", "SJW", "YORW"
         ],
         "Independent Power Producers & Energy Traders": [
-            "NRG", "AES", "CVA", "ORA"
+            "NRG", "AES", "ORA"
         ],
         "Renewable Electricity": [
             "BEPC", "CWEN", "EDN"
@@ -282,7 +265,7 @@ SECTOR_STOCKS = {
             "NEM", "FCX", "X", "AA", "CLF", "SCCO", "VALE", "HL", "MT", "STEEL"
         ],
         "Packaging & Containers": [
-            "IP", "PKG", "SEE", "WRK"
+            "IP", "PKG", "SEE"
         ]
     }
 }

@@ -3,7 +3,7 @@ from psycopg2 import OperationalError
 import os
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../credentials/.env'))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../credentials/.env'))
 
 
 DB_CONFIG = {
