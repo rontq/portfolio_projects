@@ -9,9 +9,9 @@ CREATE TABLE stock_market_table (
     subsector TEXT,
     subsector_id INT,
     date DATE NOT NULL,
+    country_of_origin TEXT,
     day_of_week INT,
     week_of_year INT,
-    is_ADR BOOLEAN NOT NULL,
 
     -- OHLCV
     open FLOAT,

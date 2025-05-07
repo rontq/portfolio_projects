@@ -1,10 +1,10 @@
 SECTOR_STOCKS = {
-    "Information Technology": {
+     "Information Technology": {
         "Application Software": [
-            "ADBE", "CRM", "INTU", "SNPS", "CDNS", "ADSK", "FICO", "ANSS", "TYL", "PTC", "SHOP", "TEAM", "APPF", "BL", "DOCU", "MDB", "PAYC", "U"
-            ],
+            "ADBE", "CRM", "INTU", "SNPS", "CDNS", "ADSK", "FICO", "ANSS", "TYL", "PTC", "PLTR", "TEAM", "APPF", "BL", "DOCU", "MDB", "PAYC", "U"
+        ],
         "Technology Hardware, Storage & Peripherals": [
-            "AAPL", "HPQ", "NTAP", "HPE", "SMCI", "WDC", "STX", "DELL", "LOGI", "ZBRA", "ANET"
+            "AAPL", "HPQ", "NTAP", "HPE", "SMCI", "WDC", "STX", "DELL", "LOGI"
         ],
         "Systems Software": [
             "MSFT", "ORCL", "NOW", "PANW", "CRWD", "FTNT", "GEN"
@@ -19,37 +19,36 @@ SECTOR_STOCKS = {
             "CSCO", "ANET", "MSI", "JNPR", "FFIV"
         ],
         "Electronic Equipment & Instruments": [
-            "KEYS", "TDY", "ZBRA", "TRMB", "GRMN", "APH", "TEL"
+            "KEYS", "TDY", "TRMB", "GRMN"
         ],
         "IT Consulting & Other Services": [
-            "ACN", "IBM", "CTSH", "IT", "EPAM", "GLOB", "HDB", "INFY", "DXC"
+            "ACN", "IBM", "CTSH", "IT", "EPAM", "GLOB", "HDB", "INFY", "DXC", "SHOP"
         ],
         "Electronic Components": [
-            "APH", "GLW"
+            "GLW"
         ],
         "Electronic Manufacturing Services": [
-            "TEL", "JBL"
+            "JBL"
         ],
         "Technology Distributors": [
             "CDW", "AVT", "SNX"
         ]
     },
-
     "Financials": {
         "Diversified Banks": [
-            "JPM", "BAC", "WFC", "C", "PNC", "USB", "TFC", "MTB"
+            "JPM", "BAC", "WFC", "C", "PNC", "USB", "TFC", "MTB", "HSBC"
         ],
         "Regional Banks": [
             "HBAN", "CFG", "RF", "FITB", "KEY"
         ],
         "Investment Banking & Brokerage": [
-            "GS", "MS", "SCHW", "RJF"
+            "GS", "MS", "RJF"
         ],
         "Asset Management & Custody Banks": [
-            "BLK", "BK", "STT", "TROW", "AMP", "BEN", "IVZ", "NTRS"
+            "BLK", "BK", "STT", "TROW", "NTRS"
         ],
         "Consumer Finance": [
-            "AXP", "COF", "DFS", "SYF"
+            "AXP", "COF", "DFS", "SYF", "SOFI", "HOOD"
         ],
         "Transaction & Payment Processing Services": [
             "V", "MA", "PYPL", "GPN", "FIS", "FI", "CPAY", "JKHY"
@@ -58,31 +57,25 @@ SECTOR_STOCKS = {
             "MMC", "AON", "AJG", "WTW", "BRO"
         ],
         "Property & Casualty Insurance": [
-            "PGR", "CB", "ALL", "TRV", "ACGL", "CINF", "WRB", "HIG", "EG", "AIZ", "L"
+            "PGR", "CB", "ALL", "TRV", "ACGL", "CINF", "WRB", "HIG", "AIZ", "L"
         ],
         "Life & Health Insurance": [
             "AFL", "MET", "PRU", "GL", "PFG"
         ],
         "Multi-line Insurance": [
-            "AIG"
-        ],
+            "AIG"            ],
         "Reinsurance": [
             "EG"
         ],
         "Financial Exchanges & Data": [
-            "SPGI", "ICE", "CME", "MCO", "MSCI", "NDAQ", "CBOE", "MKTX", "FDS", "COIN"
-        ],
+            "SPGI", "ICE", "CME", "MCO", "MSCI", "NDAQ", "CBOE", "MKTX", "FDS", "COIN"],
         "Multi-Sector Holdings": [
-            "BRK.B"
+            "BRK-B", "BRK-A"
         ],
         "Investment Management & Asset Managers": [
-            "BLK", "TROW", "IVZ", "AMP", "BX", "KKR", "CG", "APO", "SCHW", "BEN"
-        ],
-        "Consumer Finance & Payment Services": [
-            "PYPL", "DFS", "AXP", "COF", "SOFI", "HOOD"
+            "BX", "KKR", "CG", "APO"
         ]
     },
-
     "Healthcare": {
         "Health Care Equipment": [
             "ABT", "MDT", "SYK", "BSX", "ZBH", "EW", "DXCM", "IDXX", "ALGN", "COO", "XRAY", "TFX", "ISRG"
@@ -91,19 +84,18 @@ SECTOR_STOCKS = {
             "BDX", "STE", "RMD"
         ],
         "Health Care Providers & Services": [
-            "UNH", "CI", "HUM", "ANTM", "CNC", "MCK", "CAH", "CVS", "UHS", "HCA", "MOH", "ELV"
+            "UNH", "CI", "HUM", "CNC", "MCK", "CAH", "CVS", "UHS", "HCA", "MOH", "ELV"
         ],
         "Health Care Technology": [
-            "IQV", "LH", "DGX", "MTD", "PKI", "WAT", "ILMN"
+            "IQV", "LH", "DGX", "MTD", "WAT", "ILMN"
         ],
         "Biotechnology": [
-            "AMGN", "GILD", "BIIB", "REGN", "VRTX", "ALNY", "INCY", "BLUE", "CRSP", "NVAX", "BNTX", "SAGE"
+            "AMGN", "TEM", "GILD", "BIIB", "REGN", "VRTX", "ALNY", "INCY", "BLUE", "CRSP", "NVAX", "BNTX", "SAGE"
         ],
         "Pharmaceuticals": [
             "JNJ", "PFE", "MRK", "ABBV", "LLY", "BMY", "ZTS"
         ]
     },
-
     "Consumer Discretionary": {
         "Automobile Manufacturers": [
             "TSLA", "GM", "F", "LCID", "RIVN", "STLA", "TM", "NIO", "XPEV"
@@ -123,25 +115,47 @@ SECTOR_STOCKS = {
         "Specialty Retail": [
             "HD", "LOW", "ROST", "TJX", "BBY", "ULTA", "AZO", "ORLY", "KMX", "GPC", "TSCO", "FIVE", "DG", "DLTR", "WSM", "BURL"
         ],
-        "Internet & Direct Marketing Retail": [
-            "AMZN", "EBAY", "ETSY", "CHWY", "W"
+        "Broadline Retail": [
+            "AMZN", "EBAY", "ETSY", "CHWY", "W", "JD", "BABA"
         ],
         "Distributors": [
-            "GWW", "FAST", "POOL"
+        "GWW", "FAST", "POOL"
         ],
         "Diversified Consumer Services": [
-            "HRB", "LYV", "EDU"
-        ],
+            "HRB", "LYV", "EDU"],
         "Media": [
             "DIS", "NFLX", "CMCSA", "FOXA", "VIAC", "DISCA", "DISCK", "NWSA", "NWS"
         ],
         "Internet Retail & E-Commerce": [
-            "AMZN", "ETSY", "CHWY", "MELI", "SHOP", "FVRR"
-    ]
+            "MELI", "FVRR"
+        ]
+    },
+    "Energy": {
+        "Oil & Gas Drilling": [
+            "RIG", "NE", "VAL", "DO", "BORR"
+        ],
+        "Oil & Gas Equipment & Services": [
+            "SLB", "HAL", "BKR", "NOV", "FTI", "OIS", "DRQ"
+        ],
+        "Integrated Oil & Gas": [
+            "XOM", "CVX", "BP", "SHEL", "TOT", "ENI", "PTR"
+        ],
+        "Oil & Gas Exploration & Production": [
+            "EOG", "PXD", "COP", "DVN", "APA", "MRO", "FANG", "OVV"
+        ],
+        "Oil & Gas Refining & Marketing": [
+            "PSX", "VLO", "MPC", "DK", "HFC", "PBF"
+        ],
+        "Oil & Gas Storage & Transportation": [
+            "KMI", "ENB", "WMB", "EPD", "ET", "MPLX", "TRP"
+        ],
+        "Coal & Consumable Fuels": [
+            "BTU", "ARCH", "CEIX", "HCC", "NC", "YAL"
+        ]
     },
 
     "Industrials": {
-    "Aerospace & Defense": [
+        "Aerospace & Defense": [
             "BA", "RTX", "LMT", "NOC", "GD", "HII", "TDG", "HEI", "SPCE", "TDG"
         ],
         "Machinery & Equipment": [
@@ -165,34 +179,49 @@ SECTOR_STOCKS = {
     },
 
     "Consumer Staples": {
-        "Food & Beverages": [
-            "KO", "PEP", "MDLZ", "K", "GIS", "CAG", "TSN", "CPB", "HSY", "KHC", "COTY", "HSY", "POST", "SJM"
+        "Beverages": [
+            "KO", "PEP", "MNST", "KDP", "CELH", "STZ", "DEO", "BUD", "TAP", "CCEP"
+        ],
+        "Food Products": [
+            "GIS", "K", "KHC", "MDLZ", "CPB", "HRL", "SJM", "CAG", "TSN", "LANC", "LW", "BG", "ADM", "KARO"
         ],
         "Household Products": [
-            "PG", "CL", "KMB", "CHD", "REYN", "ENR", "HSY", "CLX", "BWX", "CHD"
+            "CHD", "ECL", "REYN", "ENR"
         ],
-        "Retail Staples": [
-            "WMT", "COST", "KR", "SFM", "BJ", "ACI", "TGT", "DG", "WBA", "CVS"
+        "Personal Products": [
+            "EL"
         ],
-        "Tobacco & Alcohol": [
-            "MO", "PM", "STZ", "TAP", "BUD", "DEO", "SAM", "BTI", "IMB"
+        "Tobacco": [
+            "MO", "PM", "BTI", "RLX", "IMBBY"
+        ],
+        "Food & Staples Retailing": [
+            "WMT", "COST", "KR", "ACI", "TGT", "BJ", "SFM", "CASY"
+        ],
+        "Drug Retail": [
+            "WBA", "RAD"
+        ],
+        "Consumer Staples Distribution & Retail": [
+            "PFGC", "SYY"
         ]
-    },
+  },
 
     "Communication Services": {
         "Interactive Media & Services": [
-            "GOOG", "GOOGL", "META", "NFLX", "PINS", "TWLO", "ZM", "DOCN", "TTD", "RUBI", "SNAP"
+            "GOOG", "GOOGL", "META", "NFLX", "PINS", "TWLO", "ZM", "DOCN", "TTD", "RUBI", "SNAP", 
+            "BIDU", "MTCH", "YELP", "YNDX"
         ],
         "Media & Entertainment": [
-            "DIS", "PARA", "WBD", "FOXA", "ROKU", "LYV", "IMAX", "SPOT", "CMCSA", "DISH", "SIRI"
+            "DIS", "PARA", "WBD", "FOXA", "CMCSA", "ROKU", "LYV", "IMAX", "SIRI", "FWONA", "NYT", 
+            "PSO", "WPP"
         ],
         "Telecom Services": [
-            "VZ", "T", "TMUS", "CHTR", "LUMN", "LBTYA", "LBTYK"
+            "VZ", "T", "TMUS", "CHTR", "LUMN", "LBTYA", "LBTYK", "FYBR", "IRDM", "TDS", "ATEX"
         ],
         "Gaming": [
-            "EA", "TTWO", "RBLX", "U", "NTES", "ATVI"
+            "EA", "TTWO", "RBLX", "U", "NTES", "NTDOY", "SONY", "UBSFY", "NCBDF"
         ]
-    },
+},
+
 
     "Energy": {
         "Integrated Oil & Gas": [
@@ -214,15 +243,24 @@ SECTOR_STOCKS = {
 
     "Utilities": {
         "Electric Utilities": [
-            "NEE", "DUK", "SO", "D", "EXC", "AEP", "ED", "XEL", "EIX", "FE", "PPL", "PEG", "PCG", "ETR", "WEC"
+            "NEE", "DUK", "SO", "AEP", "EXC", "D", "XEL", "ED", "PEG", "EIX", "FE", "PPL", "CMS", "NGG"
         ],
-        "Gas Utilities & Infrastructure": [
-            "SRE", "NI", "UGI", "SWX", "SR", "CNP"
+        "Gas Utilities": [
+            "SRE", "NI", "OKE", "SWX", "UGI", "NWN", "CNP"
         ],
-        "Renewables & Water": [
-            "AWK", "WTRG", "SJW", "AWR", "CWCO"
+        "Multi-Utilities": [
+            "WEC", "DTE", "ES", "LNT", "PNW", "AEE", "AVA"
+        ],
+        "Water Utilities": [
+            "WTRG", "SJW", "YORW"
+        ],
+        "Independent Power Producers & Energy Traders": [
+            "NRG", "AES", "CVA", "ORA"
+        ],
+        "Renewable Electricity": [
+            "BEPC", "CWEN", "EDN"
         ]
-    },
+  },
 
     "Real Estate": {
         "REITs": [
