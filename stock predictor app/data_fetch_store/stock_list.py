@@ -199,13 +199,13 @@ SECTOR_STOCKS = {
 
     "Energy": {
         "Oil & Gas Drilling": [
-            "RIG", "NE", "VAL", "DO", "BORR"
+            "RIG", "NE", "VAL", "BORR"
         ],
         "Oil & Gas Equipment & Services": [
-            "SLB", "HAL", "BKR", "NOV", "FTI", "OIS", "DRQ"
+            "SLB", "HAL", "BKR", "NOV", "FTI", "OIS"
         ],
         "Integrated Oil & Gas": [
-            "XOM", "CVX", "BP", "SHEL", "ENI", "PTR"
+            "XOM", "CVX", "BP", "SHEL"
         ],
         "Oil & Gas Exploration & Production": [
             "EOG", "COP", "DVN", "APA", "FANG", "OVV"
@@ -217,7 +217,7 @@ SECTOR_STOCKS = {
             "KMI", "ENB", "WMB", "EPD", "ET", "MPLX", "TRP", "TRGP", "AM"
         ],
         "Coal & Consumable Fuels": [
-            "BTU", "ARCH", "CEIX", "HCC", "NC", "YAL"
+            "BTU", "HCC", "NC", "YAL"
         ],
         "Renewables": [
             "BEP", "CWEN", "FSLR", "RUN"
