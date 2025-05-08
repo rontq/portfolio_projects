@@ -1,123 +1,142 @@
 import psycopg2
-import pandas as pd
-from psycopg2.extras import execute_batch
-from dotenv import load_dotenv
+from collections import defaultdict
+from psycopg2.extras import execute_values
 from db_params import DB_CONFIG, test_database_connection
+from stock_list import SUBSECTOR_TO_SECTOR
 
-load_dotenv()
-
-def calculate_rolling_std(series, window):
-    return series.rolling(window=window).std()
-
-def calculate_sma(series, window):
-    return series.rolling(window=window).mean()
-
-def calculate_ema(series, window):
-    return series.ewm(span=window, adjust=False).mean()
-
-def validate_columns(df, expected_columns):
-    """
-    Validate if expected columns exist in dataframe.
-    Raise KeyError if missing.
-    """
-    missing = [col for col in expected_columns if col not in df.columns]
-    if missing:
-        raise KeyError(f"Missing columns in dataframe: {missing}")
-
-def update_subsector_indicators():
+def process_subsector(subsector):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
+    sector_name = SUBSECTOR_TO_SECTOR[subsector]
 
-    # Fetch all subsector index data
     cur.execute("""
-        SELECT id, subsector, date, index_value
-        FROM sector_index_table
-        WHERE is_subsector = TRUE
-        ORDER BY subsector, date
-    """)
+        SELECT symbol, date, close, market_cap_proxy, volume
+        FROM stock_market_table
+        WHERE subsector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL
+        ORDER BY date
+    """, (subsector,))
     rows = cur.fetchall()
 
     if not rows:
-        print("⚠️ No subsector data found.")
+        print(f"⚠️ No data for {subsector}")
         return
 
-    df = pd.DataFrame(rows, columns=["id", "subsector", "date", "index_value"])
+    data_by_date = defaultdict(list)
+    prices_by_symbol = defaultdict(dict)
+    first_seen_price = {}
+    first_seen_cap = {}
 
-    updates = []
+    for symbol, date, close, cap_proxy, volume in rows:
+        data_by_date[date].append((symbol, close, cap_proxy, volume))
+        prices_by_symbol[symbol][date] = close
 
-    for subsector, group in df.groupby("subsector"):
-        group = group.sort_values("date").reset_index(drop=True)
+        if symbol not in first_seen_price:
+            first_seen_price[symbol] = close
+            first_seen_cap[symbol] = cap_proxy
 
-        # Volatility (rolling std)
-        group["volatility_5d"] = calculate_rolling_std(group["index_value"], 5)
-        group["volatility_10d"] = calculate_rolling_std(group["index_value"], 10)
-        group["volatility_20d"] = calculate_rolling_std(group["index_value"], 20)
-        group["volatility_40d"] = calculate_rolling_std(group["index_value"], 40)
+    total_baseline_cap = sum(first_seen_cap.values())
+    if total_baseline_cap == 0:
+        print(f"⚠️ Skipping {subsector}: total baseline cap is zero.")
+        return
 
-        # SMA
-        group["sma_5"] = calculate_sma(group["index_value"], 5)
-        group["sma_20"] = calculate_sma(group["index_value"], 20)
-        group["sma_50"] = calculate_sma(group["index_value"], 50)
-        group["sma_125"] = calculate_sma(group["index_value"], 125)
-        group["sma_200"] = calculate_sma(group["index_value"], 200)
+    weights = {sym: cap / total_baseline_cap for sym, cap in first_seen_cap.items()}
+    sorted_dates = sorted(data_by_date.keys())
+    previous_index = None
+    insert_buffer = []
 
-        # EMA (including future-proofed higher windows)
-        group["ema_5"] = calculate_ema(group["index_value"], 5)
-        group["ema_10"] = calculate_ema(group["index_value"], 10)
-        group["ema_20"] = calculate_ema(group["index_value"], 20)
-        group["ema_40"] = calculate_ema(group["index_value"], 40)
-        group["ema_50"] = calculate_ema(group["index_value"], 50)
-        group["ema_125"] = calculate_ema(group["index_value"], 125)
-        group["ema_200"] = calculate_ema(group["index_value"], 200)
+    for i, date in enumerate(sorted_dates):
+        daily_data = data_by_date[date]
+        index_val = 0
+        total_volume = 0
+        total_return = 0
+        weighted_return = 0
+        tickers_used_today = set()
 
-        # Validate columns
-        expected_cols = [
-            "volatility_5d", "volatility_10d", "volatility_20d", "volatility_40d",
-            "sma_5", "sma_20", "sma_50", "sma_125", "sma_200",
-            "ema_5", "ema_10", "ema_20", "ema_50", "ema_125", "ema_200"
-        ]
-        validate_columns(group, expected_cols)
+        prev_date = sorted_dates[i - 1] if i > 0 else None
 
-        for _, row in group.iterrows():
-            updates.append((
-                row["volatility_5d"], row["volatility_10d"], row["volatility_20d"], row["volatility_40d"],
-                row["sma_5"], row["sma_20"], row["sma_50"], row["sma_125"], row["sma_200"],
-                row["ema_5"], row["ema_10"], row["ema_20"], row["ema_50"], row["ema_125"], row["ema_200"],
-                row["id"]
-            ))
+        for symbol, close, cap_proxy, volume in daily_data:
+            if symbol not in weights:
+                continue
+            base_price = first_seen_price.get(symbol)
+            prev_close = prices_by_symbol[symbol].get(prev_date)
 
-            print(f"✅ {subsector} - {row['date']}: Vol5d={row['volatility_5d']:.2f}, SMA5={row['sma_5']:.2f}, EMA5={row['ema_5']:.2f}")
+            if base_price and close:
+                ratio = close / base_price
+                index_val += weights[symbol] * ratio
+                tickers_used_today.add(symbol)
 
-    if updates:
-        # Batch update
-        execute_batch(cur, """
-            UPDATE sector_index_table SET
-                volatility_5d = %s,
-                volatility_10d = %s,
-                volatility_20d = %s,
-                volatility_40d = %s,
-                sma_5 = %s,
-                sma_20 = %s,
-                sma_50 = %s,
-                sma_125 = %s,
-                sma_200 = %s,
-                ema_5 = %s,
-                ema_10 = %s,
-                ema_20 = %s,
-                ema_50 = %s,
-                ema_125 = %s,
-                ema_200 = %s
-            WHERE id = %s
-        """, updates)
+                if prev_close:
+                    ret = (close - prev_close) / prev_close
+                    total_return += ret
+                    weighted_return += weights[symbol] * ret
 
+                total_volume += volume or 0
+
+        constituent_count = len(tickers_used_today)
+        final_index_value = round(index_val * 1000, 2)
+        avg_return = round(total_return / constituent_count, 5) if constituent_count else None
+        weighted_ret = round(weighted_return, 5) if constituent_count else None
+        return_vs_prev = round((final_index_value - previous_index) / previous_index * 100, 2) if previous_index else None
+        previous_index = final_index_value
+
+        # Fetch current market cap
+        cur.execute("""
+            SELECT market_cap
+            FROM sector_index_table
+            WHERE sector = %s AND subsector IS NULL AND date = %s
+        """, (sector_name, date))
+        sector_cap_result = cur.fetchone()
+        current_sector_cap = sector_cap_result[0] if sector_cap_result else 0
+
+        cur.execute("""
+            SELECT SUM(0.3 * market_cap + 0.7 * market_cap_proxy)
+            FROM stock_market_table
+            WHERE subsector = %s AND date = %s
+        """, (subsector, date))
+        current_subsector_cap = cur.fetchone()[0] or 0
+
+        influence_weight = round(current_subsector_cap / current_sector_cap, 5) if current_sector_cap else None
+
+        insert_buffer.append((
+            sector_name, subsector, True, date,
+            final_index_value, current_subsector_cap, total_volume,
+            constituent_count, avg_return, weighted_ret, return_vs_prev,
+            influence_weight
+        ))
+
+        print(f"✅ {date} | {subsector}: Index = {final_index_value}, Constituents = {constituent_count}, Influence = {influence_weight}")
+
+    if insert_buffer:
+        execute_values(cur, """
+            INSERT INTO sector_index_table (
+                sector, subsector, is_subsector, date,
+                index_value, market_cap, total_volume,
+                num_constituents, average_return, weighted_return,
+                return_vs_previous, influence_weight
+            )
+            VALUES %s
+            ON CONFLICT (sector, subsector, date)
+            DO UPDATE SET
+                index_value = EXCLUDED.index_value,
+                market_cap = EXCLUDED.market_cap,
+                total_volume = EXCLUDED.total_volume,
+                num_constituents = EXCLUDED.num_constituents,
+                average_return = EXCLUDED.average_return,
+                weighted_return = EXCLUDED.weighted_return,
+                return_vs_previous = EXCLUDED.return_vs_previous,
+                influence_weight = EXCLUDED.influence_weight
+        """, insert_buffer)
         conn.commit()
 
     cur.close()
     conn.close()
-    print(f"\n📊 Updated {len(updates)} rows successfully.")
+
+def calculate_subsector_indexes():
+    for subsector in SUBSECTOR_TO_SECTOR:
+        process_subsector(subsector)
 
 if __name__ == "__main__":
     if test_database_connection():
-        update_subsector_indicators()
+        calculate_subsector_indexes()
     else:
         print("❌ Failed database connection.")
