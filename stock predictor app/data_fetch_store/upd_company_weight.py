@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from db_params import DB_CONFIG, test_database_connection
 from datetime import datetime, timedelta
 import sys
-
+from stock_list import SECTOR_STOCKS  # 🧩 Sector-subsector-symbol mapping
 
 def get_latest_stock_date():
     conn = psycopg2.connect(**DB_CONFIG)
@@ -23,16 +23,28 @@ def calculate_and_update_weights(start_date):
     print(f"📌 Starting weight update for company records on {start_date}")
     time.sleep(1)
 
+    # Step 1: Build symbol map and ordering
+    ordered_tickers = []
+    for sector, subsectors in SECTOR_STOCKS.items():
+        for subsector, tickers in subsectors.items():
+            for symbol in tickers:
+                ordered_tickers.append((symbol, sector, subsector))
+
+    symbols = [symbol for symbol, _, _ in ordered_tickers]
+    symbol_map = {symbol: (sector, subsector) for symbol, sector, subsector in ordered_tickers}
+
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
     print(f"⏳ Fetching stock data from database starting from {start_date}...")
-    cur.execute("""
+    placeholders = ','.join(['%s'] * len(symbols))
+    cur.execute(f"""
         SELECT id, symbol, date, sector, subsector, market_cap, market_cap_proxy
         FROM stock_market_table
         WHERE (market_cap_proxy IS NOT NULL OR market_cap IS NOT NULL)
           AND date >= %s
-    """, (start_date,))
+          AND symbol IN ({placeholders})
+    """, (start_date, *symbols))
 
     rows = cur.fetchall()
     cols = [desc[0] for desc in cur.description]
@@ -44,7 +56,11 @@ def calculate_and_update_weights(start_date):
         conn.close()
         return
 
-    print("✅ Data loaded. Calculating synthetic caps and weights...")
+    print("✅ Data loaded. Overwriting sector/subsector using SECTOR_STOCKS...")
+    df["sector"] = df["symbol"].map(lambda s: symbol_map.get(s, (None, None))[0])
+    df["subsector"] = df["symbol"].map(lambda s: symbol_map.get(s, (None, None))[1])
+
+    print("🧮 Calculating synthetic caps and weights...")
     df["synthetic_cap"] = 0.3 * df["market_cap"].fillna(0) + 0.7 * df["market_cap_proxy"].fillna(0)
 
     df_grouped_sub = df.groupby(["date", "subsector"])['synthetic_cap'].transform('sum')
@@ -53,8 +69,11 @@ def calculate_and_update_weights(start_date):
     df["subsector_weight"] = df["synthetic_cap"] / df_grouped_sub.replace(0, pd.NA)
     df["sector_weight"] = df["synthetic_cap"] / df_grouped_sec.replace(0, pd.NA)
 
-    updates = 0
+    # Force order to match SECTOR_STOCKS
+    df["symbol_order"] = df["symbol"].apply(lambda s: symbols.index(s))
+    df.sort_values(by=["symbol_order", "date"], inplace=True)
 
+    updates = 0
     print("✉️ Updating weights and influence in the database...")
     for _, row in df.iterrows():
         cur.execute("""
@@ -69,7 +88,6 @@ def calculate_and_update_weights(start_date):
         ))
 
         print(f"✅ {row['symbol']} - {row['date']}: Sector Weight = {row['sector_weight']:.6f}, Subsector Weight = {row['subsector_weight']:.6f}")
-
         updates += 1
         if updates % 10000 == 0:
             print(f"{updates} rows updated...")
