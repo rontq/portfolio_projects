@@ -51,18 +51,42 @@ def preprocess(df):
     y = df['future_return_1d']
     return X, y
 
-def train_model(X, y):
-    model = xgb.XGBRegressor(
-        n_estimators=500,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        tree_method='hist',
-        random_state=42
-    )
-    model.fit(X, y)
-    return model
+
+def train_model(X, y, xgb_params, max_retries=50, early_stop_window=10):
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, shuffle=False)
+
+    best_rmse = float("inf")
+    best_model = None
+    no_improve_count = 0
+
+    print("📈 Starting model training with retry logic...")
+
+    for i in range(1, max_retries + 1):
+        print(f"   🔁 Attempt {i}/{max_retries}")
+
+        model = xgb.XGBRegressor(**xgb_params)
+        model.fit(X_train, y_train)
+
+        preds = model.predict(X_val)
+        rmse = mean_squared_error(y_val, preds, squared=False)
+        print(f"   RMSE = {rmse:.4f}")
+
+        if rmse < best_rmse:
+            best_rmse = rmse
+            best_model = model
+            no_improve_count = 0
+            print("   ✅ New best model found.")
+        else:
+            no_improve_count += 1
+            print(f"   ⚠️ No improvement ({no_improve_count}/{early_stop_window})")
+
+        if no_improve_count >= early_stop_window:
+            print(f"⛔ Early stopping: no improvement after {early_stop_window} rounds.")
+            break
+
+    print(f"🏁 Final best RMSE: {best_rmse:.4f}")
+    return best_model, best_rmse, i
+
 
 def save_model(model, symbol):
     model_dir = "models"
