@@ -152,6 +152,23 @@ SECTOR_STOCKS = {
         ]
     },
 
+    "Communication Services": {
+        "Interactive Media & Services": [
+            "GOOG", "GOOGL", "META", "NFLX", "PINS", "TWLO", "ZM", "DOCN", "TTD", "RUBI", "SNAP", 
+            "BIDU", "MTCH", "YELP"
+        ],
+        "Media & Entertainment": [
+            "DIS", "PARA", "WBD", "FOXA", "CMCSA", "ROKU", "LYV", "IMAX", "SIRI", "FWONA", "NYT", 
+            "PSO", "WPP"
+        ],
+        "Telecom Services": [
+            "VZ", "T", "TMUS", "CHTR", "LUMN", "LBTYA", "LBTYK", "FYBR", "IRDM", "TDS", "ATEX"
+        ],
+        "Gaming": [
+            "EA", "TTWO", "RBLX", "U", "NTES", "NTDOY", "SONY", "UBSFY", "NCBDF"
+        ]
+},
+
     "Consumer Staples": {
         "Beverages": [
             "KO", "PEP", "MNST", "KDP", "CELH", "STZ", "DEO", "BUD", "TAP", "CCEP"
@@ -178,24 +195,6 @@ SECTOR_STOCKS = {
             "PFGC", "SYY"
         ]
   },
-
-    "Communication Services": {
-        "Interactive Media & Services": [
-            "GOOG", "GOOGL", "META", "NFLX", "PINS", "TWLO", "ZM", "DOCN", "TTD", "RUBI", "SNAP", 
-            "BIDU", "MTCH", "YELP"
-        ],
-        "Media & Entertainment": [
-            "DIS", "PARA", "WBD", "FOXA", "CMCSA", "ROKU", "LYV", "IMAX", "SIRI", "FWONA", "NYT", 
-            "PSO", "WPP"
-        ],
-        "Telecom Services": [
-            "VZ", "T", "TMUS", "CHTR", "LUMN", "LBTYA", "LBTYK", "FYBR", "IRDM", "TDS", "ATEX"
-        ],
-        "Gaming": [
-            "EA", "TTWO", "RBLX", "U", "NTES", "NTDOY", "SONY", "UBSFY", "NCBDF"
-        ]
-},
-
 
     "Energy": {
         "Oil & Gas Drilling": [
@@ -290,76 +289,106 @@ SECTORS = [
 
 SUBSECTOR_TO_SECTOR = {
     # Information Technology
-    "Semiconductors": "Information Technology",
-    "Semiconductor Equipment": "Information Technology",
-    "System Software": "Information Technology",
     "Application Software": "Information Technology",
-    "IT Services & Consulting": "Information Technology",
-    "Hardware, Storage & Peripherals": "Information Technology",
+    "Technology Hardware, Storage & Peripherals": "Information Technology",
+    "Systems Software": "Information Technology",
+    "Semiconductors": "Information Technology",
+    "Semiconductor Materials & Equipment": "Information Technology",
+    "Communications Equipment": "Information Technology",
     "Electronic Equipment & Instruments": "Information Technology",
-    
+    "IT Consulting & Other Services": "Information Technology",
+    "Electronic Components": "Information Technology",
+    "Electronic Manufacturing Services": "Information Technology",
+    "Technology Distributors": "Information Technology",
+
     # Financials
-    "Banks": "Financials",
+    "Diversified Banks": "Financials",
+    "Regional Banks": "Financials",
+    "Investment Banking & Brokerage": "Financials",
+    "Asset Management & Custody Banks": "Financials",
+    "Consumer Finance": "Financials",
+    "Transaction & Payment Processing Services": "Financials",
+    "Insurance Brokers": "Financials",
+    "Property & Casualty Insurance": "Financials",
+    "Life & Health Insurance": "Financials",
+    "Multi-line Insurance": "Financials",
+    "Reinsurance": "Financials",
+    "Financial Exchanges & Data": "Financials",
+    "Multi-Sector Holdings": "Financials",
     "Investment Management & Asset Managers": "Financials",
-    "Insurance": "Financials",
-    "Capital Markets & Exchanges": "Financials",
-    "Consumer Finance & Payment Services": "Financials",
-    
+
     # Healthcare
-    "Pharmaceuticals": "Healthcare",
+    "Health Care Equipment": "Healthcare",
+    "Health Care Supplies": "Healthcare",
+    "Health Care Providers & Services": "Healthcare",
+    "Health Care Technology": "Healthcare",
     "Biotechnology": "Healthcare",
-    "Healthcare Providers & Services": "Healthcare",
-    "Medical Devices & Equipment": "Healthcare",
-    "Life Sciences Tools & Services": "Healthcare",
-    
+    "Pharmaceuticals": "Healthcare",
+
     # Consumer Discretionary
-    "Internet Retail & E-Commerce": "Consumer Discretionary",
+    "Automobile Manufacturers": "Consumer Discretionary",
+    "Auto Parts & Equipment": "Consumer Discretionary",
+    "Household Durables": "Consumer Discretionary",
+    "Textiles, Apparel & Luxury Goods": "Consumer Discretionary",
+    "Hotels, Restaurants & Leisure": "Consumer Discretionary",
     "Specialty Retail": "Consumer Discretionary",
-    "Automobiles & EVs": "Consumer Discretionary",
-    "Restaurants": "Consumer Discretionary",
-    "Hotels, Resorts, and Cruise Lines": "Consumer Discretionary",
-    "Apparel & Luxury Goods": "Consumer Discretionary",
-    
+    "Broadline Retail": "Consumer Discretionary",
+    "Distributors": "Consumer Discretionary",
+    "Diversified Consumer Services": "Consumer Discretionary",
+    "Internet Retail & E-Commerce": "Consumer Discretionary",
+
     # Industrials
     "Aerospace & Defense": "Industrials",
     "Machinery & Equipment": "Industrials",
     "Transportation & Logistics": "Industrials",
     "Construction & Engineering": "Industrials",
     "Professional Services": "Industrials",
-    
+    "Building Products": "Industrials",
+    "Diversified Industrials": "Industrials",
+
     # Consumer Staples
-    "Food & Beverages": "Consumer Staples",
+    "Beverages": "Consumer Staples",
+    "Food Products": "Consumer Staples",
     "Household Products": "Consumer Staples",
-    "Retail Staples": "Consumer Staples",
-    "Tobacco & Alcohol": "Consumer Staples",
-    
+    "Personal Products": "Consumer Staples",
+    "Tobacco": "Consumer Staples",
+    "Food & Staples Retailing": "Consumer Staples",
+    "Drug Retail": "Consumer Staples",
+    "Consumer Staples Distribution & Retail": "Consumer Staples",
+
     # Communication Services
     "Interactive Media & Services": "Communication Services",
     "Media & Entertainment": "Communication Services",
     "Telecom Services": "Communication Services",
     "Gaming": "Communication Services",
-    
+
     # Energy
+    "Oil & Gas Drilling": "Energy",
+    "Oil & Gas Equipment & Services": "Energy",
     "Integrated Oil & Gas": "Energy",
     "Oil & Gas Exploration & Production": "Energy",
-    "Oilfield Services & Equipment": "Energy",
-    "Midstream & Pipelines": "Energy",
+    "Oil & Gas Refining & Marketing": "Energy",
+    "Oil & Gas Storage & Transportation": "Energy",
+    "Coal & Consumable Fuels": "Energy",
     "Renewables": "Energy",
-    
+
     # Utilities
     "Electric Utilities": "Utilities",
-    "Gas Utilities & Infrastructure": "Utilities",
-    "Renewables & Water": "Utilities",
-    
+    "Gas Utilities": "Utilities",
+    "Multi-Utilities": "Utilities",
+    "Water Utilities": "Utilities",
+    "Independent Power Producers & Energy Traders": "Utilities",
+    "Renewable Electricity": "Utilities",
+
     # Real Estate
     "REITs": "Real Estate",
     "Real Estate Management & Development": "Real Estate",
-    
+
     # Materials
     "Chemicals": "Materials",
     "Construction Materials": "Materials",
     "Metals & Mining": "Materials",
-    "Packaging & Containers": "Materials"
+    "Packaging & Containers": "Materials",
 }
 
 MACRO_CODES = {
