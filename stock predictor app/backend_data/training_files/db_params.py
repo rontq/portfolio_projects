@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../credentials/.env'))
 
+
 DB_CONFIG = {
     "dbname": os.getenv("DB_NAME"),
     "user": os.getenv("DB_USER"),
@@ -12,18 +13,6 @@ DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": os.getenv("DB_PORT"),
 }
-
-api_key = os.getenv("FRED_API_KEY")
-
-def test_database_connection():
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        conn.close()
-        print("Successfully connected to PostgreSQL database.")
-        return True
-    except OperationalError as e:
-        print("Could not connect to the database:", e)
-        return False
 
 ALLOWED_COLUMNS = {
     "company": [

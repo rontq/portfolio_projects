@@ -86,7 +86,7 @@ def fetch_stock_data(symbol, start_date="2004-01-01", retries=3, sleep_sec=2):
                 "pe_ratio": info.get("trailingPE"),
                 "forward_pe": info.get("forwardPE"),
                 "price_to_book": info.get("priceToBook"),
-                "is_adr": info.get("quoteType") == "ADR"
+                "country": info.get("country")  # Replaced is_adr with country
             }
             break
         except Exception as e:
@@ -132,7 +132,7 @@ def fetch_stock_data(symbol, start_date="2004-01-01", retries=3, sleep_sec=2):
     except Exception as e:
         print(f"⚠️ Indicator calc failed for {symbol}: {e}")
         return None, None
-
+    
 # --- Data Insert Function ---
 
 def insert_data(symbol, sector, subsector, df, market_data):
@@ -143,7 +143,6 @@ def insert_data(symbol, sector, subsector, df, market_data):
     sector_id = SECTOR_IDS.get(sector)
     subsector_id = SUBSECTOR_IDS.get(subsector)
 
-    # Validate IDs
     if symbol_id is None:
         raise ValueError(f"❌ Symbol {symbol} not found in SYMBOL_IDS mapping.")
     if sector_id is None:
@@ -157,7 +156,8 @@ def insert_data(symbol, sector, subsector, df, market_data):
         if pd.isna(row["date"]):
             continue
         insert_rows.append((
-            symbol, sector, subsector, row["date"], row.get("day_of_week"), row.get("week_of_year"), market_data.get("is_adr", False), symbol_id,
+            symbol, sector, subsector, row["date"], row.get("day_of_week"), row.get("week_of_year"),
+            market_data.get("country"), symbol_id,  # <-- Changed from is_adr
             row.get("open"), row.get("high"), row.get("low"), row.get("close"), row.get("volume"), row.get("adj_close"),
             row.get("sma_5"), row.get("sma_20"), row.get("sma_50"), row.get("sma_125"), row.get("sma_200"), row.get("sma_200_weekly"),
             row.get("ema_5"), row.get("ema_20"), row.get("ema_50"), row.get("ema_125"), row.get("ema_200"),
@@ -178,7 +178,7 @@ def insert_data(symbol, sector, subsector, df, market_data):
         try:
             execute_values(cur, """
                 INSERT INTO stock_market_table (
-                    symbol, sector, subsector, date, day_of_week, week_of_year, is_adr, symbol_id,
+                    symbol, sector, subsector, date, day_of_week, week_of_year, country_of_origin, symbol_id,
                     open, high, low, close, volume, adj_close,
                     sma_5, sma_20, sma_50, sma_125, sma_200, sma_200_weekly,
                     ema_5, ema_20, ema_50, ema_125, ema_200,

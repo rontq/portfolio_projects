@@ -95,6 +95,7 @@ def preprocess(df, features, target_col):
 
     X = df[features]
     y = df[target_col]
+    y = df[target_col]
     return X, y
 
 
