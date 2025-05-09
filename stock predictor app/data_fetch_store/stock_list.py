@@ -278,7 +278,7 @@ SECTORS = [
     "Consumer Discretionary",
     "Industrials",
     "Consumer Staples",
-    "Communications",
+    "Communication Services",
     "Utilities",
     "Real Estate",
     "Materials",

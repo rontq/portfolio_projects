@@ -2,7 +2,6 @@ import psycopg2
 import pandas as pd
 import time
 import yfinance as yf
-from dotenv import load_dotenv
 import sys
 from db_params import DB_CONFIG, test_database_connection, api_key
 from stock_list import SECTOR_STOCKS, MACRO_CODES

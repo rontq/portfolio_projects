@@ -2,7 +2,6 @@ import os
 import psycopg2
 import pandas as pd
 import time
-from dotenv import load_dotenv
 from db_params import DB_CONFIG, test_database_connection
 from datetime import datetime, timedelta
 import sys
