@@ -48,7 +48,7 @@ def calculate_and_update_weights():
 
         df["market_cap"] = df["market_cap"].fillna(0)
         df["market_cap_proxy"] = df["market_cap_proxy"].fillna(0)
-        df["synthetic_cap"] = 0.3 * df["market_cap"] + 0.7 * df["market_cap_proxy"]
+        df["synthetic_cap"] = 0.4 * df["market_cap"] + 0.6 * df["market_cap_proxy"]
 
         df_grouped_sub = df.groupby(["date", "subsector"])['synthetic_cap'].transform('sum')
         df_grouped_sec = df.groupby(["date", "sector"])['synthetic_cap'].transform('sum')
