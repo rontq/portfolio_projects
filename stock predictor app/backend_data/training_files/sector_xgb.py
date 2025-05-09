@@ -2,34 +2,48 @@ import os
 import pandas as pd
 import joblib
 import xgboost as xgb
-import numpy as np
 import gc
-import psycopg2
+from sqlalchemy import create_engine
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from db_params import DB_CONFIG
 import sys
 
-# Set up import path to get SECTORS list
 current_file = os.path.abspath(__file__)
 project_root = os.path.abspath(os.path.join(current_file, "../../.."))
 sys.path.append(project_root)
+# Ensure DB_CONFIG and SECTORS are correctly imported
+try:
+    from db_params import DB_CONFIG
+except ModuleNotFoundError as e:
+    print(f"Error: {e} - DB_CONFIG is missing.")
+    sys.exit(1)
 
 try:
     from data_fetch_store.stock_list import SECTORS
     print("SECTORS imported successfully!")
 except ModuleNotFoundError as e:
-    print(f"Error: {e}")
+    print(f"Error: {e} - SECTORS is missing.")
+    sys.exit(1)
 
 # XGBoost configuration
 xgb_params = {
-    "n_estimators": 500,
-    "learning_rate": 0.05,
-    "max_depth": 6,
+    "n_estimators": 1000,
+    "learning_rate": 0.01,
+    "max_depth": 8,
     "subsample": 0.8,
     "colsample_bytree": 0.8,
     "tree_method": "hist",
-    "random_state": 42
+    "eval_metric": "rmse",
+    "objective": "reg:squarederror",
+    "random_state": 42,
+    "booster": "gbtree",
+    "gamma": 0.1,
+    "min_child_weight": 1,
+    "max_delta_step": 1,
+    "scale_pos_weight": 1,
+    "n_jobs": -1,
+    "lambda": 1,
+    "alpha": 0,
 }
 
 # Features and target setup
@@ -45,38 +59,47 @@ input_params = {
     "target_column": "index_value"
 }
 
+# Set up SQLAlchemy engine
+db_uri = f"postgresql+psycopg2://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}"
+engine = create_engine(db_uri)
 
 def fetch_data_for_sector(sector_id):
     """Fetch merged stock and index data for a given sector ID."""
-    conn = psycopg2.connect(**DB_CONFIG)
-
     stock_query = """
         SELECT * FROM stock_market_table
-        WHERE sector_id = %s AND future_return_1d IS NOT NULL
+        WHERE sector_id = %s 
         ORDER BY date;
     """
-    stock_df = pd.read_sql(stock_query, conn, params=(sector_id,))
-
     index_query = """
         SELECT date, sector, index_value
         FROM sector_index_table
-        WHERE is_subsector = FALSE AND sector = (
+        WHERE is_subsector = false AND sector = (
             SELECT sector FROM stock_market_table WHERE sector_id = %s LIMIT 1
         )
         ORDER BY date;
     """
-    index_df = pd.read_sql(index_query, conn, params=(sector_id,))
 
-    conn.close()
+    # Fetch stock and index data
+    print(f"Executing stock query for sector_id {sector_id}...")
+    stock_df = pd.read_sql(stock_query, engine, params=(sector_id,))
+    print(f"Fetched {len(stock_df)} rows for stock data")
+
+    print(f"Executing index query for sector_id {sector_id}...")
+    index_df = pd.read_sql(index_query, engine, params=(sector_id,))
+    print(f"Fetched {len(index_df)} rows for index data")
+
+    if stock_df.empty or index_df.empty:
+        print(f"⚠️ No data found for sector_id {sector_id}, skipping...")
+        return pd.DataFrame()  # Return an empty DataFrame if no data
+
+    # Merge dataframes on date and sector
     merged_df = pd.merge(stock_df, index_df, on=["sector", "date"], how="left")
     return merged_df
-
 
 def assign_symbol_id(df, symbol_id=100):
     if 'symbol_id' not in df.columns:
         df['symbol_id'] = symbol_id
     return df
-
 
 def preprocess(df, features, target_col):
     df = df.sort_values("date").copy()
@@ -95,9 +118,7 @@ def preprocess(df, features, target_col):
 
     X = df[features]
     y = df[target_col]
-    y = df[target_col]
     return X, y
-
 
 def train_model(X, y, xgb_params, max_retries=100, early_stop_window=50):
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, shuffle=False)
@@ -134,7 +155,6 @@ def train_model(X, y, xgb_params, max_retries=100, early_stop_window=50):
     print(f"🏁 Final best RMSE: {best_rmse:.4f}")
     return best_model, best_rmse, i
 
-
 def save_model(model, sector_name, model_dir="trained_models"):
     os.makedirs(model_dir, exist_ok=True)
     safe_name = sector_name.lower().replace(" ", "_")
@@ -142,12 +162,10 @@ def save_model(model, sector_name, model_dir="trained_models"):
     joblib.dump(model, path)
     print(f"✅ Saved model: {path}")
 
-
 def clear_resources():
     gc.collect()
     xgb.Booster().free()
     print("🧹 Cleared memory and XGBoost cache.")
-
 
 def run_pipeline_for_sector(sector_id, sector_name, input_params, xgb_params):
     print(f"\n📊 Training sector: {sector_name} (ID: {sector_id})")
@@ -181,9 +199,7 @@ def run_pipeline_for_sector(sector_id, sector_name, input_params, xgb_params):
         "rounds": rounds
     }
 
-
 def train_selected_sectors(sectors, input_params, xgb_params):
-    conn = psycopg2.connect(**DB_CONFIG)
     sector_map = {}
 
     for name in sectors:
@@ -191,13 +207,11 @@ def train_selected_sectors(sectors, input_params, xgb_params):
             SELECT DISTINCT sector_id FROM stock_market_table
             WHERE sector = %s;
         """
-        df = pd.read_sql(query, conn, params=(name,))
-        if not df.empty:
-            sector_map[name] = int(df.iloc[0]["sector_id"])
+        sector_df = pd.read_sql(query, engine, params=(name,))
+        if not sector_df.empty:
+            sector_map[name] = int(sector_df.iloc[0]["sector_id"])
         else:
             print(f"⚠️ Skipping unknown or invalid sector: {name}")
-
-    conn.close()
 
     summary = []
     for name, sid in sector_map.items():
@@ -213,7 +227,6 @@ def train_selected_sectors(sectors, input_params, xgb_params):
         print(pd.DataFrame(summary).sort_values(by="rmse"))
     else:
         print("⚠️ No models were successfully trained.")
-
 
 if __name__ == "__main__":
     train_selected_sectors(SECTORS, input_params, xgb_params)
