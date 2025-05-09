@@ -8,17 +8,16 @@ import sys
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SUBSECTOR_TO_SECTOR
 
+BATCH_INSERT_THRESHOLD = 2
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
-
 
 def get_latest_stock_date():
     with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute("SELECT MAX(date) FROM stock_market_table;")
         result = cur.fetchone()
         return result[0] if result and result[0] else None
-
 
 def get_subsector_index_at_date(sector, subsector, date):
     with get_db_connection() as conn, conn.cursor() as cur:
@@ -30,7 +29,6 @@ def get_subsector_index_at_date(sector, subsector, date):
         """, (sector, subsector, date))
         result = cur.fetchone()
         return result[0] if result else None
-
 
 def process_subsector(subsector, start_date):
     sector_name = SUBSECTOR_TO_SECTOR[subsector]
@@ -69,7 +67,6 @@ def process_subsector(subsector, start_date):
         if not sorted_dates:
             return
 
-        # Calculate weights based on first available day
         baseline_data = data_by_date[sorted_dates[0]]
         cap_weights = {}
         total_cap = sum(cap for _, _, cap, _ in baseline_data if cap)
@@ -78,9 +75,8 @@ def process_subsector(subsector, start_date):
             print(f"⚠️ [{subsector}] Zero baseline market cap. Skipping.")
             return
 
-        for symbol, _, cap, _ in baseline_data:
-            if cap:
-                cap_weights[symbol] = cap / total_cap
+        cap_weights = {symbol: cap / total_cap for symbol, _, cap, _ in baseline_data if cap}
+        symbol_set = set(cap_weights)
 
         insert_buffer = []
         previous_index = baseline_index
@@ -96,8 +92,10 @@ def process_subsector(subsector, start_date):
             constituent_count = 0
 
             for symbol, close, _, volume in daily_data:
-                prev_close = prices_by_symbol[symbol].get(prev_date) if prev_date else None
-                if close and prev_close and symbol in cap_weights:
+                if symbol not in symbol_set:
+                    continue
+                prev_close = prices_by_symbol[symbol].get(prev_date)
+                if close and prev_close:
                     ret = (close / prev_close) - 1
                     weight = cap_weights[symbol]
                     index_return += weight * ret
@@ -112,7 +110,6 @@ def process_subsector(subsector, start_date):
             ret_pct = round(index_return * 100, 2) if previous_index else None
             previous_index = final_index_value
 
-            # Influence weight
             cur.execute("""
                 SELECT market_cap FROM sector_index_table
                 WHERE sector = %s AND subsector IS NULL AND date = %s
@@ -138,14 +135,13 @@ def process_subsector(subsector, start_date):
             print(f"✅ [{date}] {subsector} | Index: {final_index_value} | Influence: {influence}")
 
         if insert_buffer:
-            execute_values(cur, """
+            insert_query = """
                 INSERT INTO sector_index_table (
                     sector, subsector, is_subsector, date,
                     index_value, market_cap, total_volume,
                     num_constituents, average_return, weighted_return,
                     return_vs_previous, influence_weight
-                )
-                VALUES %s
+                ) VALUES %s
                 ON CONFLICT (sector, subsector, date)
                 DO UPDATE SET
                     index_value = EXCLUDED.index_value,
@@ -156,9 +152,13 @@ def process_subsector(subsector, start_date):
                     weighted_return = EXCLUDED.weighted_return,
                     return_vs_previous = EXCLUDED.return_vs_previous,
                     influence_weight = EXCLUDED.influence_weight
-            """, insert_buffer)
+            """
+            if len(insert_buffer) >= BATCH_INSERT_THRESHOLD:
+                execute_values(cur, insert_query, insert_buffer)
+            else:
+                for row in insert_buffer:
+                    cur.execute(insert_query, row)
             conn.commit()
-
 
 def main(force_update=False, start_date=None):
     if not test_database_connection():
@@ -197,7 +197,6 @@ def main(force_update=False, start_date=None):
     print(f"\n🚀 Starting subsector index update from: {start_date}\n")
     for subsector in SUBSECTOR_TO_SECTOR.keys():
         process_subsector(subsector, start_date)
-
 
 if __name__ == "__main__":
     force = "--force" in sys.argv
