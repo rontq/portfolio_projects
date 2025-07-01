@@ -210,7 +210,7 @@ SECTOR_STOCKS = {
             "EOG", "COP", "DVN", "APA", "FANG", "OVV"
         ],
         "Oil & Gas Refining & Marketing": [
-            "PSX", "VLO", "MPC", "DK", "HFC", "PBF"
+            "PSX", "VLO", "MPC", "DK", "PBF"
         ],
         "Oil & Gas Storage & Transportation": [
             "KMI", "ENB", "WMB", "EPD", "ET", "MPLX", "TRP", "TRGP", "AM"

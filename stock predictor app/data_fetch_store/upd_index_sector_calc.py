@@ -1,3 +1,5 @@
+# updated_sector_index_updater.py
+
 import psycopg2
 from psycopg2.extras import execute_values
 import pandas as pd
@@ -6,9 +8,9 @@ from collections import defaultdict
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SECTORS
 from datetime import datetime, timedelta
-import sys
 
 BATCH_INSERT_THRESHOLD = 2
+ROLLING_WINDOW_BUFFER = 250  # buffer for SMA/EMA continuity
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
@@ -53,6 +55,8 @@ def get_previous_day_closes_and_weights(sector, previous_date):
             return closes, weights
 
 def calculate_sector_indexes(start_date):
+    preload_start = start_date - timedelta(days=ROLLING_WINDOW_BUFFER)
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             for sector in SECTORS:
@@ -77,13 +81,13 @@ def calculate_sector_indexes(start_date):
                 cur.execute("""
                     SELECT symbol, date, close, market_cap_proxy, volume, future_return_1d
                     FROM stock_market_table
-                    WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date > %s
+                    WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date >= %s
                     ORDER BY date
-                """, (sector, start_date))
+                """, (sector, preload_start))
                 rows = cur.fetchall()
 
                 if not rows:
-                    print(f"⚠️ No new data for {sector} after {start_date}")
+                    print(f"⚠️ No new data for {sector} after {preload_start}")
                     continue
 
                 data_by_date = defaultdict(list)
@@ -133,7 +137,6 @@ def calculate_sector_indexes(start_date):
                         if close is not None:
                             prev_closes[symbol] = close
 
-                # Build DataFrame for indicator calculations
                 index_df = pd.DataFrame(raw_rows, columns=[
                     "sector", "subsector", "is_subsector", "date",
                     "index_value", "market_cap", "total_volume",
@@ -155,6 +158,8 @@ def calculate_sector_indexes(start_date):
 
                 for w in [5, 10, 20, 50, 125, 200]:
                     index_df[f"ema_{w}"] = index_df["index_value"].ewm(span=w, adjust=False).mean()
+
+                index_df = index_df[index_df.index >= pd.to_datetime(start_date)]
 
                 final_rows = []
                 for date, row in index_df.iterrows():
@@ -210,18 +215,19 @@ def calculate_sector_indexes(start_date):
                         ema_200 = EXCLUDED.ema_200
                 """
 
-                if len(final_rows) >= BATCH_INSERT_THRESHOLD:
-                    execute_values(cur, insert_query, final_rows)
-                else:
-                    for row in final_rows:
-                        cur.execute(insert_query, row)
+                if final_rows:
+                    if len(final_rows) >= BATCH_INSERT_THRESHOLD:
+                        execute_values(cur, insert_query, final_rows)
+                    else:
+                        for row in final_rows:
+                            cur.execute(insert_query, row)
 
                 conn.commit()
                 print(f"✅ Completed {sector}: {len(final_rows)} days updated")
 
     print("🏁 Sector index calculation completed.")
 
-def main(force_update=False, start_date=None):
+def main():
     if not test_database_connection():
         print("❌ Failed database connection.")
         return
@@ -233,42 +239,11 @@ def main(force_update=False, start_date=None):
         print("❌ No existing stock data found! Cannot proceed with updating.")
         return
 
-    if start_date is None:
-        if latest_date >= today:
-            print(f"⚠️ Latest date in database ({latest_date}) is up to or after today ({today})")
-            if force_update:
-                fallback = today - timedelta(days=1)
-                while fallback.weekday() >= 5:
-                    fallback -= timedelta(days=1)
-                start_date = fallback
-                print(f"⏩ Forced update fallback to: {start_date}")
-            else:
-                start_date_input = input("Enter start date (YYYY-MM-DD) or press Enter to fallback to yesterday: ").strip()
-                if start_date_input == "":
-                    fallback = today - timedelta(days=1)
-                    while fallback.weekday() >= 5:
-                        fallback -= timedelta(days=1)
-                    start_date = fallback
-                    print(f"⏩ Fallback to last weekday: {start_date}")
-                else:
-                    try:
-                        start_date = datetime.strptime(start_date_input, "%Y-%m-%d").date()
-                    except ValueError:
-                        print("❌ Invalid date format.")
-                        return
-        else:
-            start_date = latest_date + timedelta(days=1)
+    start_date = latest_date + timedelta(days=1)
+    while start_date.weekday() >= 5:
+        start_date += timedelta(days=1)
 
     calculate_sector_indexes(start_date)
 
 if __name__ == "__main__":
-    force = "--force" in sys.argv
-    date_arg = None
-    for arg in sys.argv[1:]:
-        if arg != "--force":
-            try:
-                date_arg = datetime.strptime(arg, "%Y-%m-%d").date()
-            except ValueError:
-                pass
-
-    main(force_update=force, start_date=date_arg)
+    main()

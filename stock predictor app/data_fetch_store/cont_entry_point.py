@@ -7,7 +7,6 @@ import upd_company_weight
 import upd_data_fetch
 import upd_index_sector_calc
 import upd_index_subsector_calc
-import upd_vol_sma_subsector_calc
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
@@ -99,9 +98,6 @@ def update_sector_index(force_update: bool = False, start_date: datetime.date = 
 def update_subsector_index(force_update: bool = False, start_date: datetime.date = None):
     upd_index_subsector_calc.calculate_subsector(force_update=force_update, start_date=start_date)
 
-def update_subsector_vol_sma(force_update: bool = False, start_date: datetime.date = None):
-    upd_vol_sma_subsector_calc.calculate_vol_sma(force_update=force_update, start_date=start_date)
-
 def update_company_weight(force_update: bool = False, start_date: datetime.date = None):
     upd_company_weight.calculate_company_weight(force_update=force_update, start_date=start_date)
 
@@ -135,8 +131,6 @@ def cli_entry():
         update_sector_index()
     elif command == "update_subsector_index":
         update_subsector_index()
-    elif command == "update_subsector_vol_sma":
-        update_subsector_vol_sma()
     elif command == "update_company_weight":
         update_company_weight()
     else:

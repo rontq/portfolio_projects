@@ -1,14 +1,16 @@
+# updated_subsector_index_updater.py
+
 import psycopg2
 from psycopg2.extras import execute_values
 from collections import defaultdict
 from datetime import datetime, timedelta
 import time
-import sys
 
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SUBSECTOR_TO_SECTOR
 
 BATCH_INSERT_THRESHOLD = 2
+ROLLING_WINDOW_BUFFER = 250
 
 def get_db_connection():
     return psycopg2.connect(**DB_CONFIG)
@@ -31,6 +33,7 @@ def get_subsector_index_at_date(sector, subsector, date):
         return result[0] if result else None
 
 def process_subsector(subsector, start_date):
+    preload_start = start_date - timedelta(days=ROLLING_WINDOW_BUFFER)
     sector_name = SUBSECTOR_TO_SECTOR[subsector]
     baseline_index = get_subsector_index_at_date(sector_name, subsector, start_date)
 
@@ -47,11 +50,11 @@ def process_subsector(subsector, start_date):
             FROM stock_market_table
             WHERE subsector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date >= %s
             ORDER BY date
-        """, (subsector, start_date))
+        """, (subsector, preload_start))
         rows = cur.fetchall()
 
         if not rows:
-            print(f"⚠️ [{subsector}] No data from {start_date}.")
+            print(f"⚠️ [{subsector}] No data from {preload_start}.")
             return
 
         data_by_date = defaultdict(list)
@@ -67,10 +70,12 @@ def process_subsector(subsector, start_date):
         if not sorted_dates:
             return
 
-        baseline_data = data_by_date[sorted_dates[0]]
-        cap_weights = {}
-        total_cap = sum(cap for _, _, cap, _ in baseline_data if cap)
+        baseline_data = data_by_date.get(start_date)
+        if not baseline_data:
+            print(f"⚠️ [{subsector}] No baseline data on {start_date}. Skipping.")
+            return
 
+        total_cap = sum(cap for _, _, cap, _ in baseline_data if cap)
         if total_cap == 0:
             print(f"⚠️ [{subsector}] Zero baseline market cap. Skipping.")
             return
@@ -82,7 +87,7 @@ def process_subsector(subsector, start_date):
         previous_index = baseline_index
 
         for i, date in enumerate(sorted_dates):
-            if date == start_date:
+            if date < start_date:
                 continue
 
             prev_date = sorted_dates[i - 1] if i > 0 else None
@@ -160,7 +165,7 @@ def process_subsector(subsector, start_date):
                     cur.execute(insert_query, row)
             conn.commit()
 
-def main(force_update=False, start_date=None):
+def main():
     if not test_database_connection():
         print("❌ DB connection failed.")
         return
@@ -168,45 +173,17 @@ def main(force_update=False, start_date=None):
     latest_date = get_latest_stock_date()
     today = datetime.today().date()
 
-    if latest_date is None:
+    if not latest_date:
         print("❌ No stock data found.")
         return
 
-    if not start_date:
-        if latest_date >= today:
-            if force_update:
-                start_date = today - timedelta(days=1)
-                while start_date.weekday() >= 5:
-                    start_date -= timedelta(days=1)
-                print(f"⏩ Forced fallback to: {start_date}")
-            else:
-                user_input = input("Enter start date (YYYY-MM-DD) or press Enter for yesterday: ").strip()
-                if not user_input:
-                    start_date = today - timedelta(days=1)
-                    while start_date.weekday() >= 5:
-                        start_date -= timedelta(days=1)
-                else:
-                    try:
-                        start_date = datetime.strptime(user_input, "%Y-%m-%d").date()
-                    except ValueError:
-                        print("❌ Invalid date format.")
-                        return
-        else:
-            start_date = latest_date + timedelta(days=1)
+    start_date = latest_date + timedelta(days=1)
+    while start_date.weekday() >= 5:
+        start_date += timedelta(days=1)
 
     print(f"\n🚀 Starting subsector index update from: {start_date}\n")
     for subsector in SUBSECTOR_TO_SECTOR.keys():
         process_subsector(subsector, start_date)
 
 if __name__ == "__main__":
-    force = "--force" in sys.argv
-    date_arg = None
-
-    for arg in sys.argv[1:]:
-        if arg != "--force":
-            try:
-                date_arg = datetime.strptime(arg, "%Y-%m-%d").date()
-            except ValueError:
-                pass
-
-    main(force_update=force, start_date=date_arg)
+    main()
