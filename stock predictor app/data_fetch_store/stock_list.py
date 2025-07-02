@@ -145,7 +145,7 @@ SECTOR_STOCKS = {
             "ROP", "RHI", "VRSK", "CDW", "AON", "MMC", "WTW", "EFX"
         ],
         "Building Products": [
-            "MAS", "WOOD", "BMC"
+            "MAS", "WOOD"
         ],
         "Diversified Industrials": [
             "MMM", "GE", "JCI", "IEX"
@@ -154,7 +154,7 @@ SECTOR_STOCKS = {
 
     "Communication Services": {
         "Interactive Media & Services": [
-            "GOOG", "GOOGL", "META", "NFLX", "PINS", "TWLO", "ZM", "DOCN", "TTD", "RUBI", "SNAP", 
+            "GOOG", "GOOGL", "META", "NFLX", "PINS", "TWLO", "ZM", "DOCN", "TTD", "SNAP", 
             "BIDU", "MTCH", "YELP"
         ],
         "Media & Entertainment": [
@@ -261,7 +261,7 @@ SECTOR_STOCKS = {
             "MLM", "VMC", "EXP", "ROCK", "BMC"
         ],
         "Metals & Mining": [
-            "NEM", "FCX", "X", "AA", "CLF", "SCCO", "VALE", "HL", "MT", "STEEL"
+            "NEM", "FCX", "X", "AA", "CLF", "SCCO", "VALE", "HL", "MT"
         ],
         "Packaging & Containers": [
             "IP", "PKG", "SEE"
