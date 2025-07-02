@@ -109,6 +109,7 @@ def fetch_entity_data(entity_name, date_str=None, mode="MAX"):
     elif mode == "EXPANDED":
         df = df[[col for col in EXPANDED_COLUMNS if col in df.columns]]
 
+    df = df.round(2)
     return df
 
 
