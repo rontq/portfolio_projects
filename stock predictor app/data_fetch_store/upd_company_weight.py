@@ -102,6 +102,10 @@ def main():
     while start_date.weekday() >= 5:
         start_date += timedelta(days=1)
 
+    if start_date >= today:
+        print(f"⛔ Aborted: start_date ({start_date}) is today or in the future.")
+        return
+
     calculate_and_update_weights(start_date)
 
 if __name__ == "__main__":

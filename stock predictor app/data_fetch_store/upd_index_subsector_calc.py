@@ -6,23 +6,14 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 import time
 
-from db_params import DB_CONFIG, test_database_connection
+from db_params import DB_CONFIG, test_database_connection, get_latest_stock_date
 from stock_list import SUBSECTOR_TO_SECTOR
 
 BATCH_INSERT_THRESHOLD = 2
 ROLLING_WINDOW_BUFFER = 250
 
-def get_db_connection():
-    return psycopg2.connect(**DB_CONFIG)
-
-def get_latest_stock_date():
-    with get_db_connection() as conn, conn.cursor() as cur:
-        cur.execute("SELECT MAX(date) FROM stock_market_table;")
-        result = cur.fetchone()
-        return result[0] if result and result[0] else None
-
 def get_subsector_index_at_date(sector, subsector, date):
-    with get_db_connection() as conn, conn.cursor() as cur:
+    with psycopg2.connect(**DB_CONFIG) as conn, conn.cursor() as cur:
         cur.execute("""
             SELECT index_value
             FROM sector_index_table
@@ -44,7 +35,7 @@ def process_subsector(subsector, start_date):
     print(f"📌 [{subsector}] Baseline ({start_date}): {baseline_index}")
     time.sleep(1)
 
-    with get_db_connection() as conn, conn.cursor() as cur:
+    with psycopg2.connect(**DB_CONFIG) as conn, conn.cursor() as cur:
         cur.execute("""
             SELECT symbol, date, close, market_cap_proxy, volume
             FROM stock_market_table
@@ -180,6 +171,10 @@ def main():
     start_date = latest_date + timedelta(days=1)
     while start_date.weekday() >= 5:
         start_date += timedelta(days=1)
+    
+    if start_date >= today:
+        print(f"⛔ Aborted: start_date ({start_date}) is today or in the future.")
+        return
 
     print(f"\n🚀 Starting subsector index update from: {start_date}\n")
     for subsector in SUBSECTOR_TO_SECTOR.keys():

@@ -209,10 +209,11 @@ def main():
         print("❌ No existing data found in DB.")
         return
 
-    today = datetime.today().date()
     start_date = latest_date + timedelta(days=1)
     while start_date.weekday() >= 5:
         start_date += timedelta(days=1)
+    
+    
 
     macro_df = fetch_macro_data(start_date)
     vix_df = fetch_vix_data(start_date)

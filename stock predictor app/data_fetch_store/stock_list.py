@@ -216,7 +216,7 @@ SECTOR_STOCKS = {
             "KMI", "ENB", "WMB", "EPD", "ET", "MPLX", "TRP", "TRGP", "AM"
         ],
         "Coal & Consumable Fuels": [
-            "BTU", "HCC", "NC", "YAL"
+            "BTU", "HCC", "NC"
         ],
         "Renewables": [
             "BEP", "CWEN", "FSLR", "RUN"
@@ -234,7 +234,7 @@ SECTOR_STOCKS = {
             "WEC", "DTE", "ES", "LNT", "PNW", "AEE", "AVA"
         ],
         "Water Utilities": [
-            "WTRG", "SJW", "YORW"
+            "WTRG", "YORW"
         ],
         "Independent Power Producers & Energy Traders": [
             "NRG", "AES", "ORA"
@@ -258,7 +258,7 @@ SECTOR_STOCKS = {
             "LIN", "DD", "DOW", "CE", "ALB", "MOS", "FMC", "APD", "ASH", "LYB", "NTR", "SHW"
         ],
         "Construction Materials": [
-            "MLM", "VMC", "EXP", "ROCK", "BMC"
+            "MLM", "VMC", "EXP", "ROCK"\
         ],
         "Metals & Mining": [
             "NEM", "FCX", "X", "AA", "CLF", "SCCO", "VALE", "HL", "MT"

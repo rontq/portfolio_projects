@@ -38,6 +38,15 @@ def create_table():
     except Exception as e:
         print("Error creating table:", e)
 
+
+
+def get_latest_stock_date():
+    with psycopg2.connect(**DB_CONFIG) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT MAX(date) FROM stock_market_table;")
+            result = cur.fetchone()
+            return result[0] if result and result[0] else None
+
 ALLOWED_COLUMNS = {
     "company": [
         "date", "symbol", "sector", "subsector",

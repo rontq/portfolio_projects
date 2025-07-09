@@ -1,0 +1,11 @@
+Progress:
+- Data ingestion and preparation for initialization is finished. 
+- Updating database files still needs clean up and fault proofing. 
+
+Performance: 
+- Prior 25-32 hours to go through intialization pipeline. Sector/subsector indices and values took ~24 hours.
+-Current: Updated code to go through the init pipeline in about 1-2 hours.
+
+
+-Scalability: 
+-Can be scaled to predict sector pe
