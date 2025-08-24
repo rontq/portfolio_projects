@@ -1,11 +1,27 @@
 import psycopg2
 import pandas as pd
-from collections import defaultdict
 from psycopg2.extras import execute_values
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SECTOR_STOCKS  # {sector: {subsector: [symbols]}}
+from datetime import datetime
 
-def process_all_subsectors():
+def process_all_subsectors(cutoff_date="LATEST"):
+    """
+    Calculates sector and subsector indices up to a specified cutoff date.
+    :param cutoff_date: 'YYYY-MM-DD' string or "LATEST" for latest DB date.
+    """
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+
+    # --- Handle cutoff argument ---
+    global_cutoff = None
+    if cutoff_date != "LATEST":
+        try:
+            global_cutoff = datetime.strptime(cutoff_date, "%Y-%m-%d").date()
+            print(f"📅 Global cutoff date set to {global_cutoff}")
+        except ValueError:
+            raise ValueError("❌ Invalid cutoff date format. Use 'YYYY-MM-DD' or 'LATEST'.")
+
     for sector, subsectors in SECTOR_STOCKS.items():
         symbols = [symbol for syms in subsectors.values() for symbol in syms]
         if not symbols:
@@ -18,7 +34,7 @@ def process_all_subsectors():
             with conn.cursor() as cur:
                 placeholders = ','.join(['%s'] * len(symbols))
 
-                # Fetch all historical data for the sector
+                # Fetch stock-level data
                 cur.execute(f"""
                     SELECT symbol, date, close, market_cap, market_cap_proxy, volume, future_return_1d, subsector
                     FROM stock_market_table
@@ -32,25 +48,58 @@ def process_all_subsectors():
                     print(f"⚠️ No data found for sector {sector}")
                     continue
 
-                df = pd.DataFrame(rows, columns=["symbol", "date", "close", "market_cap", "market_cap_proxy", "volume", "future_return_1d", "subsector"])
-                df["date"] = pd.to_datetime(df["date"])
+                df = pd.DataFrame(rows, columns=[
+                    "symbol", "date", "close", "market_cap",
+                    "market_cap_proxy", "volume", "future_return_1d", "subsector"
+                ])
+                df["date"] = pd.to_datetime(df["date"]).dt.date
+
+                # --- Apply cutoff globally ---
+                if global_cutoff:
+                    df = df[df["date"] <= global_cutoff]
+
                 df["blended_cap"] = 0.4 * df["market_cap"] + 0.6 * df["market_cap_proxy"]
 
-                # Fetch sector market caps from index table
+                # Fetch existing sector caps
                 cur.execute("""
                     SELECT date, market_cap FROM sector_index_table
                     WHERE sector = %s AND subsector IS NULL AND market_cap IS NOT NULL
                 """, (sector,))
                 sector_caps = dict(cur.fetchall())
 
-        # Calculate each subsector
+        # --- Process subsectors ---
         for subsector in subsectors:
             sub_df = df[df["subsector"] == subsector].copy()
             if sub_df.empty:
                 print(f"⚠️ No data for subsector {subsector}")
                 continue
 
-            print(f"🔹 Calculating subsector: {subsector}")
+            grouped = sub_df.groupby("date")
+            sorted_dates = sorted(grouped.groups.keys())
+
+            # ✅ Resolve cutoff dynamically
+            if cutoff_date == "LATEST":
+                with psycopg2.connect(**DB_CONFIG) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            SELECT MAX(date) FROM sector_index_table
+                            WHERE sector = %s AND subsector = %s
+                        """, (sector, subsector))
+                        last_stored = cur.fetchone()[0]
+                        if last_stored:
+                            sector_cutoff = last_stored
+                            sorted_dates = [d for d in sorted_dates if d > sector_cutoff]
+                            print(f"⏩ Resuming {subsector} after {sector_cutoff}")
+                        else:
+                            sector_cutoff = None
+            else:
+                sorted_dates = [d for d in sorted_dates if d <= global_cutoff]
+
+            if not sorted_dates:
+                print(f"⚠️ No valid dates for subsector {subsector} after cutoff")
+                continue
+
+            print(f"🔹 Calculating subsector: {subsector} (dates {sorted_dates[0]} → {sorted_dates[-1]})")
 
             first_valid_price = {}
             proxy_cap_baseline = {}
@@ -75,8 +124,7 @@ def process_all_subsectors():
                 for symbol, cap in proxy_cap_baseline.items()
             }
 
-            grouped = sub_df.groupby("date")
-            sorted_dates = sorted(grouped.groups.keys())
+            # --- Build index series ---
             previous_index = None
             index_series = []
             returns_map = {}
@@ -124,7 +172,7 @@ def process_all_subsectors():
                 previous_index = final_index_value
 
                 blended_cap = float(daily_df["blended_cap"].sum())
-                sector_cap = sector_caps.get(date.date(), 0)
+                sector_cap = sector_caps.get(date, 0)
                 influence_weight = round(blended_cap / sector_cap, 5) if sector_cap else None
 
                 index_series.append((date, final_index_value))
@@ -139,24 +187,30 @@ def process_all_subsectors():
                     "influence_weight": influence_weight
                 }
 
+            # --- Build DataFrame & indicators ---
             index_df = pd.DataFrame(index_series, columns=["date", "index_value"]).set_index("date")
             returns = index_df["index_value"].pct_change()
 
+            # Volatility windows
             for w in [5, 10, 20, 40]:
                 index_df[f"volatility_{w}d"] = returns.rolling(w).std()
 
+            # Momentum
             index_df["momentum_14d"] = index_df["index_value"].pct_change(14)
 
+            # SMA
             for w in [5, 20, 50, 125, 200]:
                 index_df[f"sma_{w}"] = index_df["index_value"].rolling(w).mean()
 
+            # Long SMA ~ weekly proxy
             index_df["sma_200_weekly"] = index_df["index_value"].rolling(1000).mean()
 
+            # EMA
             for w in [5, 10, 20, 50, 125, 200]:
                 index_df[f"ema_{w}"] = index_df["index_value"].ewm(span=w, adjust=False).mean()
 
+            # --- Build DB insert records ---
             insert_records = []
-
             for date, row in index_df.iterrows():
                 meta = metadata_by_date.get(date, {})
 
@@ -173,6 +227,7 @@ def process_all_subsectors():
                     *[round(row.get(f"ema_{w}"), 5) if pd.notna(row.get(f"ema_{w}")) else None for w in [5,10,20,50,125,200]]
                 ))
 
+            # --- Commit to DB ---
             if insert_records:
                 with psycopg2.connect(**DB_CONFIG) as conn:
                     with conn.cursor() as cur:
@@ -219,7 +274,10 @@ def process_all_subsectors():
 
 def main():
     if test_database_connection():
-        process_all_subsectors()
+        # Example usage:
+        # CUTOFF_DATE = "2025-08-15"   # fixed date
+        CUTOFF_DATE = "LATEST"          # use latest date in DB per sector
+        process_all_subsectors(cutoff_date=CUTOFF_DATE)
     else:
         print("❌ Failed database connection.")
 

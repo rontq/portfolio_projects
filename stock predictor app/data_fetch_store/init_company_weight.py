@@ -2,7 +2,7 @@ import psycopg2
 import pandas as pd
 from psycopg2.extras import execute_batch
 from db_params import DB_CONFIG, test_database_connection
-from stock_list import SECTOR_STOCKS  # ⬅️ Your sector/subsector-ticker mapping
+from stock_list import SECTOR_STOCKS  
 
 def calculate_and_update_weights():
     conn = psycopg2.connect(**DB_CONFIG)

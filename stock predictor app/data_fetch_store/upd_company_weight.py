@@ -1,5 +1,3 @@
-# updated_weight_updater.py
-
 import os
 import psycopg2
 import pandas as pd
