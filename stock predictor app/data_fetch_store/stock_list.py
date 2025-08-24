@@ -48,7 +48,7 @@ SECTOR_STOCKS = {
             "BLK", "BK", "STT", "TROW", "NTRS"
         ],
         "Consumer Finance": [
-            "AXP", "COF", "DFS", "SYF", "SOFI", "HOOD"
+            "AXP", "COF", "SYF", "SOFI", "HOOD"
         ],
         "Transaction & Payment Processing Services": [
             "V", "MA", "PYPL", "GPN", "FIS", "FI", "CPAY", "JKHY"
@@ -90,7 +90,7 @@ SECTOR_STOCKS = {
             "IQV", "LH", "DGX", "MTD", "WAT", "ILMN"
         ],
         "Biotechnology": [
-            "AMGN", "TEM", "GILD", "BIIB", "REGN", "VRTX", "ALNY", "INCY", "BLUE", "CRSP", "NVAX", "BNTX", "SAGE"
+            "AMGN", "TEM", "GILD", "BIIB", "REGN", "VRTX", "ALNY", "INCY", "CRSP", "NVAX", "BNTX", "SAGE"
         ],
         "Pharmaceuticals": [
             "JNJ", "PFE", "MRK", "ABBV", "LLY", "BMY", "ZTS"

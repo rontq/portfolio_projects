@@ -6,6 +6,7 @@ from psycopg2.extras import execute_values
 from db_params import DB_CONFIG, test_database_connection, create_table, api_key
 from stock_list import SECTOR_STOCKS, MACRO_CODES
 from fredapi import Fred
+from datetime import datetime, timedelta
 
 from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator
@@ -207,21 +208,39 @@ def insert_data(symbol, sector, subsector, df, market_data):
 # --- Main Driver ---
 
 def main():
+    # --- Change this variable to control cutoff ---
+    CUTOFF_DATE = "2025-08-08"   # options: "LATEST" or "YYYY-MM-DD"
+                             # Make sure the cutoff is a weekday.
+    # ---------------------------------------------
+
+    if CUTOFF_DATE == "LATEST":
+        end_date = datetime.today().strftime("%Y-%m-%d")
+    else:
+        try:
+            end_date = datetime.strptime(CUTOFF_DATE, "%Y-%m-%d").strftime("%Y-%m-%d")
+        except ValueError:
+            raise ValueError("❌ Invalid date format. Use 'YYYY-MM-DD' or 'LATEST'.")
+
     if test_database_connection():
         create_table()
-        macro_df = fetch_macro_data()
-        vix_df = fetch_vix_data()
+        macro_df = fetch_macro_data(end_date=end_date)
+        vix_df = fetch_vix_data(start_date="2004-01-01")
 
         for sector, subsectors in SECTOR_STOCKS.items():
             for subsector, symbols in subsectors.items():
                 for symbol in symbols:
-                    print(f"📈 Fetching {symbol} ({sector} - {subsector})...")
+                    print(f"📈 Fetching {symbol} ({sector} - {subsector}) up to {end_date}...")
                     try:
-                        df, market_data = fetch_stock_data(symbol)
+                        df, market_data = fetch_stock_data(symbol, start_date="2004-01-01")
                         if df is not None and not df.empty:
+                            # Restrict rows up to chosen cutoff
+                            df = df[df["date"] <= pd.to_datetime(end_date).date()]
+
+                            # Merge with VIX & macro
                             df = df.merge(vix_df, on="date", how="left")
                             if not macro_df.empty:
                                 df = df.merge(macro_df, on="date", how="left")
+
                             insert_data(symbol, sector, subsector, df, market_data)
                     except Exception as e:
                         print(f"⚠️ Failed processing {symbol}: {e}")

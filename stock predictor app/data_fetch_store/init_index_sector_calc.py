@@ -2,30 +2,61 @@ import psycopg2
 import pandas as pd
 from db_params import DB_CONFIG, test_database_connection
 from stock_list import SECTORS
+from datetime import datetime
 
-def calculate_sector_indexes():
+def calculate_sector_indexes(cutoff_date="LATEST"):
+    """
+    Calculates sector indices up to a specified cutoff date.
+    :param cutoff_date: 'YYYY-MM-DD' string or "LATEST" for latest DB date
+    """
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
+    # Determine the cutoff date
+    if cutoff_date != "LATEST":
+        try:
+            cutoff_date = datetime.strptime(cutoff_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("❌ Invalid cutoff date format. Use 'YYYY-MM-DD' or 'LATEST'.")
+    else:
+        # We'll determine the latest date per sector later
+        cutoff_date = None
+
     for sector in SECTORS:
+        # If LATEST, query the last date in DB for this sector
+        if cutoff_date is None:
+            cur.execute("""
+                SELECT MAX(date) FROM stock_market_table WHERE sector = %s
+            """, (sector,))
+            result = cur.fetchone()[0]
+            if result is None:
+                print(f"⚠️ No data found for sector {sector}")
+                continue
+            cutoff_date_sector = result
+            print(f"🗓 {sector}: Using latest DB date as cutoff: {cutoff_date_sector}")
+        else:
+            cutoff_date_sector = cutoff_date
+            print(f"🗓 {sector}: Using cutoff date: {cutoff_date_sector}")
+
         print(f"\U0001F4CA Processing sector: {sector}")
 
         cur.execute("""
             SELECT symbol, date, close, market_cap, market_cap_proxy, volume, future_return_1d,
                    0.4 * market_cap + 0.6 * market_cap_proxy AS blended_cap
             FROM stock_market_table
-            WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL
+            WHERE sector = %s AND close IS NOT NULL AND market_cap_proxy IS NOT NULL AND date <= %s
             ORDER BY date
-        """, (sector,))
+        """, (sector, cutoff_date_sector))
         rows = cur.fetchall()
 
         if not rows:
-            print(f"⚠️ No data for {sector}")
+            print(f"⚠️ No data for {sector} before cutoff {cutoff_date_sector}")
             continue
 
         df = pd.DataFrame(rows, columns=["symbol", "date", "close", "market_cap", "market_cap_proxy", "volume", "future_return_1d", "blended_cap"])
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"]).dt.date
 
+        # --- rest of the calculation unchanged ---
         first_valid_price = {}
         proxy_cap_baseline = {}
         seen_symbols = set()
@@ -44,10 +75,7 @@ def calculate_sector_indexes():
             print(f"⚠️ Skipping {sector}: baseline market cap is zero.")
             continue
 
-        weights = {
-            symbol: cap / total_baseline_cap
-            for symbol, cap in proxy_cap_baseline.items()
-        }
+        weights = {symbol: cap / total_baseline_cap for symbol, cap in proxy_cap_baseline.items()}
 
         grouped = df.groupby("date")
         sorted_dates = sorted(grouped.groups.keys())
@@ -195,6 +223,9 @@ def calculate_sector_indexes():
 
 if __name__ == "__main__":
     if test_database_connection():
-        calculate_sector_indexes()
+        # Example usage:
+        # CUTOFF_DATE = "2025-08-15"   # fixed date
+        CUTOFF_DATE = "LATEST"          # use latest date in DB per sector
+        calculate_sector_indexes(cutoff_date=CUTOFF_DATE)
     else:
         print("❌ Database connection failed.")
